@@ -1,0 +1,3609 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>桜パチンコ · Sakura Pachinko</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Noto+Serif+JP:wght@700;900&family=Yuji+Syuku&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: radial-gradient(ellipse at top, #1a0f2e 0%, #0a0612 60%, #000 100%);
+    color: #f5e6c8;
+    font-family: 'Noto Sans JP', system-ui, sans-serif;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Sakura petals drifting across the whole page */
+  #sakura-bg {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #stars {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+  }
+
+  #app {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr) 240px;
+    gap: 14px;
+    padding: 12px;
+    height: 100vh;
+    max-width: 1360px;
+    margin: 0 auto;
+    align-items: center;
+  }
+
+  /* Scale the whole machine to fit the viewport without scrolling. */
+  #machine {
+    transform-origin: top center;
+    will-change: transform;
+    justify-self: center;
+    align-self: center;
+  }
+
+  .panel {
+    background: linear-gradient(160deg, rgba(35, 12, 18, 0.92), rgba(20, 8, 14, 0.96));
+    border: 2px solid;
+    border-image: linear-gradient(145deg, #d4a845, #8b5e20, #d4a845) 1;
+    border-radius: 4px;
+    padding: 20px 18px;
+    box-shadow: 0 0 30px rgba(212, 168, 69, 0.15) inset, 0 8px 24px rgba(0,0,0,0.6);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+  }
+  .panel::-webkit-scrollbar { width: 6px; }
+  .panel::-webkit-scrollbar-track { background: transparent; }
+  .panel::-webkit-scrollbar-thumb { background: rgba(212, 168, 69, 0.3); border-radius: 3px; }
+  /* In a flex column with overflow, children default-shrink to 0. Pin them. */
+  .panel > * { flex-shrink: 0; }
+
+  .panel::before {
+    content: "";
+    position: absolute;
+    inset: 6px;
+    border: 1px solid rgba(212, 168, 69, 0.25);
+    pointer-events: none;
+    border-radius: 2px;
+  }
+
+  .panel h2 {
+    font-family: 'Yuji Syuku', 'Noto Serif JP', serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: #d4a845;
+    letter-spacing: 2px;
+    text-align: center;
+    margin-bottom: 4px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(212, 168, 69, 0.35);
+    text-shadow: 0 0 8px rgba(212, 168, 69, 0.4);
+  }
+
+  .panel h2 .en {
+    display: block;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 3px;
+    color: #8a7a5a;
+    margin-top: 2px;
+  }
+
+  .stat {
+    text-align: center;
+  }
+  .stat-value {
+    font-family: 'Noto Serif JP', serif;
+    font-size: 38px;
+    font-weight: 900;
+    color: #fff;
+    text-shadow: 0 0 12px rgba(255, 80, 120, 0.6), 0 0 3px rgba(255,255,255,0.6);
+    line-height: 1;
+    letter-spacing: 1px;
+  }
+  .stat-value.gold {
+    color: #ffe082;
+    text-shadow: 0 0 12px rgba(255, 220, 100, 0.8), 0 0 3px rgba(255,255,255,0.7);
+    transition: transform 0.08s ease-out;
+    transform-origin: center;
+    display: inline-block;
+  }
+  .stat-label {
+    font-size: 10px;
+    color: #8a7a5a;
+    letter-spacing: 3px;
+    margin-top: 4px;
+  }
+
+  .kv {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 13px;
+    color: #c9b892;
+    padding: 4px 0;
+    border-bottom: 1px dashed rgba(212, 168, 69, 0.15);
+  }
+  .kv span:last-child {
+    color: #fff;
+    font-weight: 700;
+    font-family: 'Noto Serif JP', serif;
+  }
+
+  .instructions {
+    font-size: 12px;
+    line-height: 1.7;
+    color: #c9b892;
+  }
+  .instructions .key {
+    display: inline-block;
+    background: linear-gradient(180deg, #2a1a20, #1a0c10);
+    border: 1px solid rgba(212, 168, 69, 0.4);
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-family: 'Noto Serif JP', serif;
+    font-weight: 700;
+    color: #ffe082;
+    font-size: 11px;
+    margin: 0 2px;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.5);
+  }
+
+  /* Power meter */
+  .power-wrap {
+    margin-top: auto;
+  }
+  .power-label {
+    font-size: 11px;
+    color: #d4a845;
+    letter-spacing: 2px;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  .power-meter {
+    height: 14px;
+    background: #0a0408;
+    border: 1px solid rgba(212, 168, 69, 0.4);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+  }
+  .power-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    background: linear-gradient(90deg, #2a7a3a 0%, #d4a845 50%, #e60012 100%);
+    width: 0%;
+    transition: width 0.04s linear;
+    box-shadow: 0 0 8px rgba(255, 80, 80, 0.6);
+  }
+
+  /* Game area: pachinko machine */
+  #machine {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #machine-frame {
+    position: relative;
+    padding: 18px 18px 16px 18px;
+    background:
+      linear-gradient(180deg, #3a1214 0%, #2a0c0e 100%);
+    border-radius: 14px 14px 8px 8px;
+    box-shadow:
+      0 0 0 3px #d4a845,
+      0 0 0 5px #8b5e20,
+      0 0 60px rgba(230, 0, 18, 0.35),
+      0 20px 60px rgba(0,0,0,0.75),
+      inset 0 0 40px rgba(0,0,0,0.5);
+  }
+
+  #title-banner {
+    text-align: center;
+    padding: 10px 0 14px 0;
+    position: relative;
+  }
+  #title-banner h1 {
+    font-family: 'Yuji Syuku', 'Noto Serif JP', serif;
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: 10px;
+    background: linear-gradient(180deg, #ffe082 0%, #d4a845 50%, #8b5e20 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+    filter: drop-shadow(0 0 8px rgba(212, 168, 69, 0.4));
+  }
+  #title-banner .sub {
+    font-size: 10px;
+    letter-spacing: 6px;
+    color: #8a7a5a;
+    margin-top: 2px;
+  }
+  #title-banner::before, #title-banner::after {
+    content: "❀";
+    color: #ffb7c5;
+    font-size: 16px;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    filter: drop-shadow(0 0 4px rgba(255, 183, 197, 0.6));
+  }
+  #title-banner::before { left: 8%; }
+  #title-banner::after { right: 8%; }
+
+  #canvas-wrap {
+    position: relative;
+    border: 2px solid #5a3018;
+    border-radius: 4px;
+    background: #000;
+    box-shadow:
+      inset 0 0 20px rgba(0,0,0,0.8),
+      0 0 1px rgba(212, 168, 69, 0.8);
+    overflow: hidden;
+  }
+  #game {
+    display: block;
+    background: transparent;
+  }
+
+  /* Win overlay */
+  #win-flash {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    z-index: 10;
+    transition: opacity 0.3s;
+  }
+  #win-flash.show {
+    opacity: 1;
+  }
+  #win-flash .text {
+    font-family: 'Yuji Syuku', 'Noto Serif JP', serif;
+    font-size: 72px;
+    font-weight: 900;
+    letter-spacing: 12px;
+    color: #ffe082;
+    text-shadow:
+      0 0 20px #ff4040,
+      0 0 40px #ff4040,
+      0 0 60px #ff0,
+      0 4px 0 #8b5e20;
+    animation: jackpotPulse 0.8s ease-in-out;
+  }
+  @keyframes jackpotPulse {
+    0% { transform: scale(0.3) rotate(-8deg); opacity: 0; }
+    40% { transform: scale(1.2) rotate(3deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0); opacity: 1; }
+  }
+
+  /* Bottom controls */
+  #bottom-bar {
+    margin-top: 12px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+  }
+  button.ctrl {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 2px;
+    padding: 8px 18px;
+    background: linear-gradient(180deg, #c61020 0%, #8b0012 100%);
+    color: #fff;
+    border: 1px solid #d4a845;
+    border-radius: 3px;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #5a0008, 0 0 12px rgba(230, 0, 18, 0.35);
+    transition: transform 0.06s, box-shadow 0.06s;
+  }
+  button.ctrl:hover {
+    background: linear-gradient(180deg, #e61020 0%, #a00015 100%);
+  }
+  button.ctrl:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #5a0008;
+  }
+  button.ctrl.gold {
+    background: linear-gradient(180deg, #d4a845 0%, #8b5e20 100%);
+    box-shadow: 0 3px 0 #3a2410, 0 0 12px rgba(212, 168, 69, 0.35);
+  }
+  button.ctrl.gold:hover {
+    background: linear-gradient(180deg, #ffc045 0%, #a07020 100%);
+  }
+
+  /* Launcher knob */
+  #launcher-knob {
+    position: absolute;
+    right: -28px;
+    bottom: 80px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #ffe082 0%, #d4a845 35%, #8b5e20 75%, #3a2410 100%);
+    border: 3px solid #5a3018;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.7), 0 0 12px rgba(212, 168, 69, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Yuji Syuku', serif;
+    color: #3a1214;
+    font-weight: 900;
+    font-size: 20px;
+    cursor: pointer;
+    z-index: 5;
+    transition: transform 0.1s;
+  }
+  #launcher-knob:active, #launcher-knob.charging {
+    transform: rotate(45deg) scale(0.94);
+  }
+
+  /* Mt Fuji silhouette on page background — subtle behind everything */
+  #fuji-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.18;
+  }
+
+  #game-over {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 4, 8, 0.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 20px;
+    z-index: 20;
+    text-align: center;
+  }
+  #game-over.show { display: flex; }
+  #game-over h2 {
+    font-family: 'Yuji Syuku', 'Noto Serif JP', serif;
+    font-size: 48px;
+    color: #e60012;
+    letter-spacing: 6px;
+    text-shadow: 0 0 20px rgba(230, 0, 18, 0.8);
+  }
+  #game-over p {
+    font-size: 14px;
+    color: #d4a845;
+    letter-spacing: 2px;
+  }
+  #game-over .final-score {
+    font-size: 64px;
+    font-family: 'Noto Serif JP', serif;
+    color: #ffe082;
+    text-shadow: 0 0 20px rgba(255, 220, 100, 0.8);
+  }
+
+  @media (max-height: 860px) {
+    #title-banner { padding: 6px 0 8px 0; }
+    #title-banner h1 { font-size: 22px; letter-spacing: 8px; }
+    #machine-frame { padding: 12px 14px 10px 14px; }
+  }
+
+  /* Tablet: narrower sidebars */
+  @media (max-width: 1100px) {
+    #app { grid-template-columns: 190px minmax(0, 1fr) 190px; gap: 10px; padding: 8px; }
+    .panel { padding: 14px 10px; gap: 12px; }
+    .stat-value { font-size: 30px; }
+    .panel h2 { font-size: 14px; letter-spacing: 3px; }
+  }
+  @media (max-width: 900px) {
+    #app { grid-template-columns: 150px minmax(0, 1fr) 150px; gap: 6px; padding: 4px; }
+    .panel { padding: 10px 8px; gap: 8px; }
+    .panel h2 { font-size: 11px; letter-spacing: 2px; padding-bottom: 4px; margin-bottom: 2px; }
+    .panel h2 .en { font-size: 8px; letter-spacing: 1px; }
+    .stat-value { font-size: 22px; }
+    .stat-label { font-size: 8px; letter-spacing: 1px; }
+    .instructions { font-size: 10px; line-height: 1.4; }
+    .instructions p { margin-top: 4px; }
+    .kv { font-size: 11px; padding: 3px 0; }
+    .key { font-size: 9px; padding: 1px 4px; }
+  }
+
+  /* Compact HUD: horizontal stats strip shown only on true mobile */
+  #mobile-hud {
+    display: none;
+    gap: 10px;
+    padding: 8px 12px;
+    background: linear-gradient(180deg, rgba(35, 12, 18, 0.92), rgba(20, 8, 14, 0.96));
+    border: 1px solid rgba(212, 168, 69, 0.4);
+    border-radius: 6px;
+    margin: 0 auto 4px auto;
+    color: #ffe082;
+    font-family: 'Noto Sans JP', sans-serif;
+    justify-content: space-around;
+    width: 100%;
+    max-width: 560px;
+    box-sizing: border-box;
+  }
+  #mobile-hud .h-item { display: flex; flex-direction: column; align-items: center; min-width: 50px; }
+  #mobile-hud .h-val { font-family: 'Yuji Syuku', serif; font-size: 20px; color: #ffd84a; line-height: 1; }
+  #mobile-hud .h-val.gold { color: #ffd84a; text-shadow: 0 0 6px rgba(255, 200, 60, 0.7); }
+  #mobile-hud .h-label { font-size: 9px; letter-spacing: 2px; color: #a07020; margin-top: 3px; }
+
+  /* Mobile: drop sidebars, center game, show compact HUD */
+  @media (max-width: 640px) {
+    #app {
+      grid-template-columns: 1fr;
+      padding: 4px;
+      gap: 4px;
+      align-items: start;
+      justify-content: center;
+    }
+    #left-panel, #right-panel { display: none; }
+    #machine { justify-self: center; }
+    #mobile-hud { display: flex; }
+    #title-banner h1 { font-size: 20px; letter-spacing: 6px; }
+    #title-banner .sub { font-size: 9px; letter-spacing: 4px; }
+    #title-banner::before, #title-banner::after { display: none; }
+  }
+
+  /* Mascot — dancing anime girl video that pops in during jackpot/fever */
+  #mascot-wrap {
+    position: absolute;
+    right: 6px;
+    bottom: 50px;
+    width: 160px;
+    height: 200px;
+    z-index: 6;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateX(140%) scale(0.6) rotate(18deg);
+    transition:
+      opacity 0.25s ease-out,
+      transform 0.45s cubic-bezier(0.2, 1.6, 0.4, 1);
+    filter:
+      drop-shadow(0 8px 20px rgba(255, 80, 120, 0.55))
+      drop-shadow(0 0 24px rgba(255, 224, 130, 0.4));
+  }
+  #mascot-wrap.show {
+    opacity: 1;
+    transform: translateX(0) scale(1) rotate(0deg);
+  }
+  #mascot-wrap.show.fever {
+    animation: mascotDance 0.32s ease-in-out infinite;
+  }
+  #mascot {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+    border-radius: 10px;
+  }
+  #mascot video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center bottom;
+    display: block;
+  }
+  @keyframes mascotDance {
+    0% { transform: translateY(-4px) rotate(-5deg) scale(1.04); }
+    50% { transform: translateY(-14px) rotate(5deg) scale(1.1); }
+    100% { transform: translateY(-4px) rotate(-5deg) scale(1.04); }
+  }
+  @media (max-width: 700px) {
+    #mascot-wrap { width: 110px; height: 140px; bottom: 40px; right: 4px; }
+  }
+  @media (max-width: 420px) {
+    #mascot-wrap { width: 86px; height: 110px; bottom: 30px; }
+  }
+
+  /* Fever banner + screen effects */
+  #fever-banner {
+    position: absolute;
+    left: 0; right: 0;
+    top: 38%;
+    text-align: center;
+    pointer-events: none;
+    z-index: 12;
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+  #fever-banner.show { opacity: 1; }
+  #fever-banner .txt {
+    display: inline-block;
+    font-family: 'Yuji Syuku', 'Noto Serif JP', serif;
+    font-weight: 900;
+    font-size: 96px;
+    letter-spacing: 20px;
+    background: linear-gradient(180deg, #fff 0%, #ffe082 30%, #ff4060 70%, #c61020 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter:
+      drop-shadow(0 0 24px rgba(255, 80, 120, 0.95))
+      drop-shadow(0 0 48px rgba(255, 80, 120, 0.5));
+    animation: feverPulse 0.28s ease-in-out infinite alternate;
+  }
+  #fever-banner .sub {
+    display: block;
+    font-size: 18px;
+    letter-spacing: 10px;
+    color: #ffe082;
+    text-shadow: 0 0 12px rgba(255,80,120,0.9);
+    margin-top: 4px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 700;
+  }
+  @keyframes feverPulse {
+    0% { transform: scale(1) rotate(-1deg); }
+    100% { transform: scale(1.08) rotate(1.5deg); }
+  }
+  #canvas-wrap.fever {
+    box-shadow:
+      inset 0 0 20px rgba(255, 60, 100, 0.9),
+      0 0 40px rgba(255, 60, 100, 0.65),
+      0 0 80px rgba(255, 40, 80, 0.4);
+    animation: feverFrame 0.2s linear infinite;
+  }
+  @keyframes feverFrame {
+    0%, 100% { filter: hue-rotate(0deg) saturate(1.1); }
+    50% { filter: hue-rotate(-15deg) saturate(1.3); }
+  }
+
+  /* ------------ SOLANA / CHAIN UI ------------ */
+  #chain-section { display: flex; flex-direction: column; gap: 8px; }
+  #chain-section .wallet-row {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px; color: #d4a845;
+  }
+  #chain-section .addr {
+    font-family: 'Courier New', monospace; font-size: 10px;
+    color: #8ae9ff; cursor: pointer;
+  }
+  #chain-section .balance {
+    font-family: 'Yuji Syuku', serif; font-size: 20px; color: #9c5bff;
+    text-shadow: 0 0 8px rgba(156, 91, 255, 0.55);
+    line-height: 1;
+  }
+  #chain-section .balance .unit { font-size: 11px; color: #7a5ba8; letter-spacing: 2px; }
+  .chain-btn {
+    display: block; width: 100%; padding: 6px 8px;
+    font-family: 'Noto Sans JP', sans-serif; font-size: 10px; letter-spacing: 1px;
+    text-transform: uppercase; color: #fff; cursor: pointer;
+    background: linear-gradient(180deg, #6b3bd2 0%, #3a1e85 100%);
+    border: 1px solid rgba(156, 91, 255, 0.6);
+    border-radius: 4px; transition: all 0.12s;
+  }
+  .chain-btn:hover:not(:disabled) { background: linear-gradient(180deg, #8a5bef 0%, #4a2ba0 100%); transform: translateY(-1px); }
+  .chain-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .chain-btn.ghost {
+    background: transparent; color: #9c5bff; border: 1px solid rgba(156, 91, 255, 0.5);
+  }
+  .chain-btn.play {
+    background: linear-gradient(180deg, #d4a845 0%, #a07020 100%);
+    color: #1a0a14; border-color: #ffe082;
+    font-weight: 900; padding: 8px;
+  }
+  .chain-btn.play:hover:not(:disabled) {
+    background: linear-gradient(180deg, #ffd060 0%, #b07830 100%);
+  }
+  #tx-status {
+    font-size: 10px; color: #8ae9ff; min-height: 14px;
+    padding: 4px 0; line-height: 1.4; word-break: break-all;
+  }
+  #tx-status.error { color: #ff5b7a; }
+  #tx-status.ok { color: #6ef0a8; }
+  #tx-status.pending { color: #8ae9ff; }
+  #chain-section .addr.connected { color: #6ef0a8; }
+  #session-info {
+    font-size: 10px; color: #cbd5ff; padding: 6px 8px; margin-top: 4px;
+    background: rgba(110, 240, 168, 0.08); border: 1px solid rgba(110, 240, 168, 0.3);
+    border-radius: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  }
+  #session-info .sess-label { color: #6ef0a8; letter-spacing: 1px; font-weight: bold; }
+  #session-info a { color: #8ae9ff; text-decoration: underline; }
+  #session-info .sess-balls { color: #ffd57a; margin-left: auto; }
+  .feed-item .feed-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .feed-item .ball-idx { color: #ffd57a; font-size: 9px; margin-left: 4px; }
+
+  /* Feed */
+  /* Let the outer .panel handle scrolling; if feed-panel has its own max-height
+     inside a flex column, it collapses to 0 when the column overflows. */
+  #feed-panel { gap: 6px; flex-shrink: 0; }
+  #feed-list { display: flex; flex-direction: column; gap: 5px; }
+  .feed-item {
+    padding: 6px 8px; background: rgba(156, 91, 255, 0.08);
+    border: 1px solid rgba(156, 91, 255, 0.25);
+    border-radius: 4px; font-size: 10px; line-height: 1.4;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .feed-item.jackpot { background: rgba(230, 0, 18, 0.15); border-color: rgba(230, 0, 18, 0.5); }
+  .feed-item .top { display: flex; justify-content: space-between; align-items: center; }
+  .feed-item .result { font-family: 'Yuji Syuku', serif; font-size: 13px; color: #ffe082; }
+  .feed-item.jackpot .result { color: #ff6080; text-shadow: 0 0 8px rgba(255,80,120,0.8); }
+  .feed-item .sig { font-family: monospace; font-size: 9px; color: #8ae9ff; }
+  .feed-item .sig a { color: #8ae9ff; text-decoration: none; }
+  .feed-item .sig a:hover { color: #b0f4ff; text-decoration: underline; }
+  .feed-item .verify-btn {
+    padding: 2px 8px; font-size: 9px; letter-spacing: 1px;
+    background: rgba(156, 91, 255, 0.2); color: #9c5bff;
+    border: 1px solid rgba(156, 91, 255, 0.5); border-radius: 3px;
+    cursor: pointer; font-family: inherit;
+  }
+  .feed-item .verify-btn:hover { background: rgba(156, 91, 255, 0.4); color: #fff; }
+
+  /* Verify modal */
+  #verify-modal {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.86);
+    display: none; align-items: center; justify-content: center;
+    z-index: 100; backdrop-filter: blur(4px);
+  }
+  #verify-modal.show { display: flex; }
+  #verify-modal .modal {
+    background: linear-gradient(160deg, #1a0a14, #0a0408);
+    border: 2px solid #d4a845; border-radius: 8px;
+    padding: 20px; max-width: 440px; width: 92%;
+    box-shadow: 0 10px 60px rgba(212, 168, 69, 0.35);
+    color: #e8d8b8; font-size: 13px;
+    max-height: 92vh; overflow-y: auto;
+  }
+  /* Scrollbar styling inside the modal so it matches the gold theme */
+  #verify-modal .modal::-webkit-scrollbar { width: 8px; }
+  #verify-modal .modal::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+  #verify-modal .modal::-webkit-scrollbar-thumb { background: rgba(212, 168, 69, 0.4); border-radius: 4px; }
+  #verify-modal h3 {
+    margin: 0 0 14px 0; font-family: 'Yuji Syuku', serif;
+    color: #ffe082; font-size: 20px; letter-spacing: 3px;
+    text-align: center; border-bottom: 1px solid rgba(212, 168, 69, 0.3);
+    padding-bottom: 8px;
+  }
+  #verify-modal .kv-row {
+    display: flex; justify-content: space-between; gap: 10px;
+    padding: 6px 0; border-bottom: 1px dashed rgba(212, 168, 69, 0.15);
+    font-size: 12px;
+  }
+  #verify-modal .kv-row .k { color: #a07020; letter-spacing: 1px; }
+  #verify-modal .kv-row .v {
+    font-family: monospace; color: #8ae9ff; text-align: right;
+    word-break: break-all; max-width: 280px;
+  }
+  #verify-modal .kv-row .v a { color: #8ae9ff; }
+  #verify-modal #verify-canvas-wrap {
+    margin: 12px auto; text-align: center;
+    background: #000; border: 1px solid #5a3018; border-radius: 4px;
+    display: inline-block; width: 100%;
+  }
+  #verify-modal #verify-canvas {
+    display: block; margin: 0 auto;
+    max-width: 100%; background: linear-gradient(180deg, #1a0816, #3d1824);
+  }
+  #verify-modal .verify-status {
+    text-align: center; padding: 8px;
+    font-family: 'Yuji Syuku', serif; font-size: 16px;
+    color: #ffe082;
+  }
+  #verify-modal .verify-status.match,
+  #verify-modal .verify-status.ok { color: #6ef0a8; }
+  #verify-modal .verify-status.mismatch,
+  #verify-modal .verify-status.warn { color: #ff9a3a; }
+  #verify-modal .actions { display: flex; gap: 8px; margin-top: 14px; }
+  #verify-modal .actions button { flex: 1; padding: 8px; }
+  #verify-modal .v-explain {
+    font-size: 12px;
+    line-height: 1.55;
+    color: #c8b5d8;
+    background: rgba(138, 91, 239, 0.08);
+    border: 1px solid rgba(138, 91, 239, 0.25);
+    border-radius: 4px;
+    padding: 10px 12px;
+    margin: 0 0 14px 0;
+  }
+  #verify-modal .v-explain b { color: #ffe082; }
+  #verify-modal .v-explain code {
+    font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    font-size: 11px;
+    color: #8ae9ff;
+    background: rgba(0,0,0,0.35);
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+
+  /* Dim/disabled launcher when waiting on chain */
+  #launcher-knob.pending {
+    opacity: 0.5; cursor: wait;
+    background: linear-gradient(180deg, #6b3bd2 0%, #3a1e85 100%);
+  }
+  #launcher-knob.pending::after {
+    content: ''; position: absolute;
+    inset: -4px; border: 2px solid rgba(156, 91, 255, 0.8);
+    border-top-color: transparent; border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<canvas id="fuji-bg"></canvas>
+<canvas id="stars"></canvas>
+<canvas id="sakura-bg"></canvas>
+
+<div id="app">
+  <!-- LEFT PANEL -->
+  <aside class="panel" id="left-panel">
+    <h2>ソラナ<span class="en">SOLANA DEVNET</span></h2>
+    <div id="chain-section">
+      <div class="wallet-row">
+        <span>Wallet</span>
+        <span class="addr" id="wallet-addr" title="Click to copy">Not connected</span>
+      </div>
+      <div class="wallet-row">
+        <span>Balance</span>
+        <span class="balance"><span id="wallet-balance">0.000</span> <span class="unit">SOL</span></span>
+      </div>
+      <button class="chain-btn play" id="btn-play-guest">▶ Play as Guest</button>
+      <button class="chain-btn ghost" id="btn-connect-phantom">Connect Phantom</button>
+      <button class="chain-btn" id="btn-airdrop" disabled>Airdrop 1 SOL</button>
+      <button class="chain-btn ghost" id="btn-disconnect" style="display:none">Disconnect</button>
+      <div id="tx-status"></div>
+      <div id="session-info" style="display:none"></div>
+    </div>
+
+    <h2>スコア<span class="en">SCORE</span></h2>
+    <div class="stat">
+      <div class="stat-value gold" id="score">0</div>
+      <div class="stat-label">POINTS</div>
+    </div>
+
+    <h2>最高記録<span class="en">HIGH SCORE</span></h2>
+    <div class="stat">
+      <div class="stat-value" id="hiscore">0</div>
+      <div class="stat-label">BEST</div>
+    </div>
+
+    <h2>玉<span class="en">BALLS</span></h2>
+    <div class="stat">
+      <div class="stat-value" id="balls-remaining">100</div>
+      <div class="stat-label">REMAINING</div>
+    </div>
+
+    <div style="margin-top: auto;">
+      <div class="kv"><span>発射回数</span><span id="balls-used">0</span></div>
+      <div class="kv"><span>大当たり</span><span id="jackpots">0</span></div>
+      <div class="kv"><span>当たり</span><span id="wins">0</span></div>
+      <div class="kv"><span>連鎖</span><span id="combo">0</span></div>
+    </div>
+  </aside>
+
+  <!-- CENTER GAME -->
+  <div id="machine">
+    <div id="machine-frame">
+      <div id="title-banner">
+        <h1>桜 パ チ ン コ</h1>
+        <div class="sub">SAKURA · PACHINKO</div>
+      </div>
+      <div id="mobile-hud">
+        <div class="h-item"><div class="h-val gold" id="hud-score">0</div><div class="h-label">POINTS</div></div>
+        <div class="h-item"><div class="h-val" id="hud-balls">100</div><div class="h-label">BALLS</div></div>
+        <div class="h-item"><div class="h-val" id="hud-jackpots">0</div><div class="h-label">大当たり</div></div>
+      </div>
+      <div id="canvas-wrap">
+        <canvas id="game" width="535" height="720"></canvas>
+        <div id="win-flash"><div class="text">大当たり!</div></div>
+        <div id="fever-banner"><div class="txt">FEVER</div><div class="sub">大 盤 振 舞 い</div></div>
+        <div id="mascot-wrap">
+          <div id="mascot">
+            <video id="mascot-video" src="mascot.webm" muted loop playsinline preload="metadata"></video>
+          </div>
+        </div>
+        <div id="game-over">
+          <h2>ゲームオーバー</h2>
+          <div>GAME OVER</div>
+          <div class="final-score" id="final-score">0</div>
+          <button class="ctrl gold" id="btn-restart-over">もう一度 · PLAY AGAIN</button>
+        </div>
+      </div>
+      <div id="launcher-knob" title="Hold to charge, release to launch">発射</div>
+      <div id="bottom-bar">
+        <button class="ctrl" id="btn-restart">リセット · RESET</button>
+        <button class="ctrl gold" id="btn-sound">♪ SOUND: ON</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <aside class="panel" id="right-panel">
+    <h2>遊び方<span class="en">HOW TO PLAY</span></h2>
+    <div class="instructions">
+      <p>Hold <span class="key">SPACE</span> or the <span class="key">発射</span> knob to charge the launcher.</p>
+      <p style="margin-top:8px">Release to fire a ball up the right channel and into the field.</p>
+      <p style="margin-top:8px">Aim for the center <b style="color:#e60012">大当たり</b> pocket for the jackpot (+500 pts, +20 balls).</p>
+      <p style="margin-top:8px">Side pockets award smaller wins. Balls that fall into a gutter are lost.</p>
+      <p style="margin-top:8px">Press <span class="key">R</span> to reset · <span class="key">M</span> to mute.</p>
+    </div>
+
+    <h2>配当<span class="en">PAYOUTS</span></h2>
+    <div class="instructions" style="font-size: 13px;">
+      <div class="kv"><span style="color:#e60012;font-weight:700">大当たり</span><span>+500 / +20玉</span></div>
+      <div class="kv"><span style="color:#ffe082">福</span><span>+100 / +5玉</span></div>
+      <div class="kv"><span style="color:#ffb7c5">桜</span><span>+50 / +2玉</span></div>
+      <div class="kv"><span style="color:#8a7a5a">風車</span><span>+10</span></div>
+      <div class="kv"><span style="color:#8a7a5a">釘</span><span>+1</span></div>
+    </div>
+
+    <h2>最近の記録<span class="en">RECENT PLAYS</span></h2>
+    <div id="feed-panel">
+      <div id="feed-list"><div style="color:#7a5ba8;font-size:10px;text-align:center;padding:10px">No plays yet — launch to create the first onchain record.</div></div>
+    </div>
+
+    <div class="power-wrap">
+      <div class="power-label">発 射 力  ·  POWER</div>
+      <div class="power-meter"><div class="power-fill" id="power-fill"></div></div>
+    </div>
+  </aside>
+</div>
+
+<!-- Verify modal -->
+<div id="verify-modal">
+  <div class="modal">
+    <h3>検証 · VERIFY</h3>
+    <p class="v-explain">
+      This ball's outcome is <b>provably fair</b>. When the session started, a
+      random seed was committed onchain. Every ball in this session is derived
+      deterministically as <code>SHA256(sessionSeed ‖ ballIndex)</code> — so
+      given the session tx (visible to anyone), you can replay the exact
+      physics and confirm the result wasn't tampered with. No server trust.
+    </p>
+    <div class="kv-row"><span class="k">Session Tx</span><span class="v"><a id="v-sig" href="#" target="_blank" rel="noopener">-</a></span></div>
+    <div class="kv-row"><span class="k">Blockhash</span><span class="v" id="v-blockhash">-</span></div>
+    <div class="kv-row"><span class="k">Ball Index</span><span class="v" id="v-ball-idx">-</span></div>
+    <div class="kv-row"><span class="k">Ball Seed = SHA256(sessionSeed ‖ idx)</span><span class="v" id="v-seed">-</span></div>
+    <div class="kv-row"><span class="k">Launch (vx, vyJitter, power)</span><span class="v" id="v-params">-</span></div>
+    <div class="kv-row"><span class="k">Original Result</span><span class="v" id="v-original">-</span></div>
+    <div id="verify-canvas-wrap">
+      <canvas id="verify-canvas" width="280" height="400"></canvas>
+    </div>
+    <div class="verify-status" id="v-status">Replaying physics from onchain seed...</div>
+    <div class="actions">
+      <button class="chain-btn ghost" id="v-replay">↻ Replay animation</button>
+      <button class="chain-btn" id="v-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"></script>
+<!-- Buffer polyfill: @solana/web3.js uses Node's Buffer internally (tx.sign / tx.serialize)
+     and the iife bundle does NOT ship one. Without this, any tx submission throws
+     "Buffer is not defined". Load before web3.js. -->
+<script src="https://bundle.run/buffer@6.0.3"></script>
+<script>if (typeof window !== 'undefined' && window.buffer && !window.Buffer) { window.Buffer = window.buffer.Buffer; }</script>
+<script src="https://unpkg.com/@solana/web3.js@1.95.3/lib/index.iife.min.js"></script>
+<script>
+(() => {
+  'use strict';
+
+  // ---------- CONSTANTS ----------
+  const W = 500;              // playfield width
+  const H = 720;              // playfield height
+  const CH = 35;              // launcher channel width
+  const CANVAS_W = W + CH;
+
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  const { Engine, World, Bodies, Body, Composite, Constraint, Events, Vector, Common } = Matter;
+
+  // ---------- STATE ----------
+  const state = {
+    score: 0,
+    hiScore: +localStorage.getItem('pachinko-hi') || 0,
+    ballsRemaining: 100,
+    ballsUsed: 0,
+    jackpots: 0,
+    wins: 0,
+    combo: 0,
+    lastWinTime: 0,
+    soundOn: true,
+    charging: false,
+    power: 0,
+    gameOver: false,
+    fever: 0,            // frames of fever mode remaining
+    feverMultiplier: 3,  // score + ball multiplier during fever
+    shake: 0,            // screen-shake frames remaining
+    shakeAmp: 0,         // current shake amplitude
+    scorePop: 0,         // counter for score popup animation
+  };
+  const FEVER_DURATION = 900; // ~15 seconds at 60fps
+
+  // ---------- AUDIO ----------
+  let audioCtx = null;
+  function audio() {
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch(e) { return null; }
+    }
+    return audioCtx;
+  }
+  function beep(freq, duration, type = 'sine', vol = 0.1, when = 0) {
+    if (!state.soundOn) return;
+    const ac = audio(); if (!ac) return;
+    const t0 = ac.currentTime + when;
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t0);
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(vol, t0 + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.start(t0); osc.stop(t0 + duration + 0.02);
+  }
+  function soundPeg() {
+    // metallic click
+    const f = 1800 + Math.random() * 800;
+    beep(f, 0.04, 'triangle', 0.04);
+  }
+  function soundLaunch() {
+    beep(120, 0.15, 'sawtooth', 0.06);
+    beep(180, 0.15, 'sawtooth', 0.04, 0.02);
+  }
+  function soundWin() {
+    beep(880, 0.15, 'sine', 0.1);
+    beep(1320, 0.2, 'sine', 0.08, 0.08);
+    beep(1760, 0.3, 'sine', 0.06, 0.16);
+  }
+  function soundJackpot() {
+    const notes = [523, 659, 784, 1047, 1319, 1568];
+    notes.forEach((f, i) => {
+      beep(f, 0.3, 'triangle', 0.09, i * 0.08);
+      beep(f * 2, 0.3, 'sine', 0.04, i * 0.08);
+    });
+    // bell overtones
+    beep(1200, 0.8, 'sine', 0.05, 0.4);
+    beep(2400, 0.6, 'sine', 0.03, 0.45);
+  }
+  function soundSpinner() {
+    beep(2400 + Math.random() * 400, 0.06, 'square', 0.03);
+  }
+  function soundLose() {
+    beep(220, 0.12, 'triangle', 0.04);
+    beep(160, 0.18, 'triangle', 0.04, 0.08);
+  }
+
+  // ---------- PROCEDURAL MUSIC (Tone.js) ----------
+  // Pentatonic koto-ish loop that intensifies during FEVER mode.
+  // Starts on first user gesture (to satisfy browser audio policy).
+  const music = {
+    started: false,
+    calmLoop: null,
+    feverLoop: null,
+    bassLoop: null,
+    kickLoop: null,
+    hatLoop: null,
+    masterGain: null,
+    calmGain: null,
+    feverGain: null,
+    pluck: null,
+    feverSynth: null,
+    bass: null,
+    kick: null,
+    hat: null,
+  };
+
+  function initMusic() {
+    if (music.started || typeof Tone === 'undefined') return;
+    try {
+      Tone.start();
+      music.masterGain = new Tone.Gain(0.55).toDestination();
+      // Subtle reverb for zen ambience.
+      const reverb = new Tone.Reverb({ decay: 3.5, wet: 0.35 }).connect(music.masterGain);
+
+      // Calm layer — plucked koto / pentatonic ambient loop.
+      music.calmGain = new Tone.Gain(0.6).connect(reverb);
+      music.pluck = new Tone.PluckSynth({ attackNoise: 0.4, dampening: 3000, resonance: 0.9 }).connect(music.calmGain);
+      // Japanese hirajoshi-like pentatonic: A4 B4 C5 E5 F5 A5
+      const calmNotes = ['A4', 'C5', 'E5', 'A4', 'B4', 'E5', 'F5', 'C5'];
+      let ci = 0;
+      music.calmLoop = new Tone.Loop(time => {
+        const n = calmNotes[ci % calmNotes.length];
+        music.pluck.triggerAttack(n, time);
+        if (ci % 4 === 0) music.pluck.triggerAttack(Tone.Frequency(n).transpose(-12).toNote(), time + 0.01);
+        ci++;
+      }, '4n');
+
+      // Fever layer — driving synth + drum pattern, starts silent.
+      music.feverGain = new Tone.Gain(0).connect(music.masterGain);
+      music.feverSynth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: 'sawtooth' },
+        envelope: { attack: 0.005, decay: 0.15, sustain: 0.2, release: 0.2 },
+      }).connect(music.feverGain);
+      music.feverSynth.volume.value = -4;
+      music.bass = new Tone.MonoSynth({
+        oscillator: { type: 'square' },
+        envelope: { attack: 0.005, decay: 0.2, sustain: 0.4, release: 0.2 },
+        filter: { Q: 6, type: 'lowpass', rolloff: -24 },
+        filterEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.3, release: 0.4, baseFrequency: 200, octaves: 3 },
+      }).connect(music.feverGain);
+      music.bass.volume.value = -6;
+      music.kick = new Tone.MembraneSynth({
+        pitchDecay: 0.04,
+        octaves: 6,
+        envelope: { attack: 0.001, decay: 0.3, sustain: 0.0, release: 0.2 },
+      }).connect(music.feverGain);
+      music.kick.volume.value = -3;
+      music.hat = new Tone.MetalSynth({
+        frequency: 250,
+        envelope: { attack: 0.001, decay: 0.08, release: 0.04 },
+        harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5,
+      }).connect(music.feverGain);
+      music.hat.volume.value = -22;
+
+      const feverNotes = ['A4', 'C5', 'E5', 'G5', 'A5', 'G5', 'E5', 'C5', 'A4', 'C5', 'E5', 'G5', 'F5', 'E5', 'C5', 'A4'];
+      const bassNotes = ['A2', 'A2', 'E2', 'E2', 'F2', 'F2', 'G2', 'G2'];
+      let fi = 0, bi = 0;
+      music.feverLoop = new Tone.Loop(time => {
+        music.feverSynth.triggerAttackRelease(feverNotes[fi % feverNotes.length], '16n', time);
+        fi++;
+      }, '16n');
+      music.bassLoop = new Tone.Loop(time => {
+        music.bass.triggerAttackRelease(bassNotes[bi % bassNotes.length], '8n', time);
+        bi++;
+      }, '8n');
+      music.kickLoop = new Tone.Loop(time => {
+        music.kick.triggerAttackRelease('C1', '16n', time);
+      }, '4n');
+      let hi = 0;
+      music.hatLoop = new Tone.Loop(time => {
+        if (hi % 2 === 1) music.hat.triggerAttackRelease('32n', time);
+        hi++;
+      }, '8n');
+
+      Tone.Transport.bpm.value = 110;
+      Tone.Transport.start('+0.05');
+      music.calmLoop.start(0);
+      music.feverLoop.start(0);
+      music.bassLoop.start(0);
+      music.kickLoop.start(0);
+      music.hatLoop.start(0);
+      music.started = true;
+    } catch (e) {
+      // Tone failed to init — game continues without music.
+      console.warn('music init failed', e);
+    }
+  }
+
+  function setFeverMusic(on) {
+    if (!music.started) return;
+    const target = on ? 1.0 : 0.0;
+    const calmTarget = on ? 0.15 : 0.6;
+    const now = Tone.now();
+    music.feverGain.gain.cancelScheduledValues(now);
+    music.feverGain.gain.linearRampToValueAtTime(target, now + (on ? 0.2 : 1.2));
+    music.calmGain.gain.cancelScheduledValues(now);
+    music.calmGain.gain.linearRampToValueAtTime(calmTarget, now + 0.6);
+    if (on) Tone.Transport.bpm.rampTo(138, 0.4);
+    else Tone.Transport.bpm.rampTo(110, 1.5);
+  }
+
+  function setMusicMuted(muted) {
+    if (!music.started) return;
+    music.masterGain.gain.rampTo(muted ? 0 : 0.55, 0.2);
+  }
+
+  function musicStinger() {
+    // Triumphant chord hit on jackpot.
+    if (!music.started) return;
+    const now = Tone.now();
+    music.feverSynth.triggerAttackRelease(['A4', 'C#5', 'E5', 'A5'], '2n', now);
+    music.kick.triggerAttackRelease('C1', '8n', now);
+  }
+
+  function triggerFever() {
+    state.fever = FEVER_DURATION;
+    state.shake = 60;
+    state.shakeAmp = 14;
+    setFeverMusic(true);
+    document.getElementById('fever-banner').classList.add('show');
+    document.getElementById('canvas-wrap').classList.add('fever');
+    const mw = document.getElementById('mascot-wrap');
+    mw.classList.add('show', 'fever');
+    const mv = document.getElementById('mascot-video');
+    if (mv) { try { mv.currentTime = 0; mv.play(); } catch (_) {} }
+    musicStinger();
+    setTimeout(() => document.getElementById('fever-banner').classList.remove('show'), 2200);
+  }
+  function endFever() {
+    state.fever = 0;
+    setFeverMusic(false);
+    document.getElementById('canvas-wrap').classList.remove('fever');
+    const mw = document.getElementById('mascot-wrap');
+    mw.classList.remove('show', 'fever');
+    // Pause video when hidden — it's a 658KB webm, decoding burns CPU even offscreen.
+    const mv = document.getElementById('mascot-video');
+    if (mv) { try { mv.pause(); } catch (_) {} }
+  }
+  function addShake(frames, amp) {
+    state.shake = Math.max(state.shake, frames);
+    state.shakeAmp = Math.max(state.shakeAmp, amp);
+  }
+
+  // ---------- PHYSICS ENGINE ----------
+  const engine = Engine.create();
+  engine.gravity.y = 0.75;
+  engine.positionIterations = 12;
+  engine.velocityIterations = 10;
+  engine.constraintIterations = 4;
+  const world = engine.world;
+
+  // Walls (playfield boundary) — thick to prevent fast-ball tunneling
+  const wallOpts = { isStatic: true, restitution: 0.3, friction: 0.05, label: 'wall' };
+  // worldWalls tracks every static body the verify-replay needs to reconstruct
+  // (walls, divider, rails, pocket dividers, gutter angle ramps).
+  const worldWalls = [];
+  const boundaryWalls = [
+    Bodies.rectangle(-100, H/2, 200, H * 2, wallOpts),                        // left
+    Bodies.rectangle(CANVAS_W + 100, H/2, 200, H * 2, wallOpts),              // right
+    Bodies.rectangle(CANVAS_W/2, -100, CANVAS_W * 2, 200, wallOpts),          // top
+    Bodies.rectangle(CANVAS_W/2, H + 100, CANVAS_W * 2, 200, wallOpts),       // bottom
+  ];
+  worldWalls.push(...boundaryWalls);
+  Composite.add(world, boundaryWalls);
+
+  // Divider between playfield and launcher channel (opening at top)
+  const DIV_X = W;
+  const DIV_TOP_OPEN = 85;   // opening from y=0 to y=85 for ball to exit channel
+  const divider = Bodies.rectangle(DIV_X, (H + DIV_TOP_OPEN) / 2, 6, H - DIV_TOP_OPEN, wallOpts);
+  worldWalls.push(divider);
+  Composite.add(world, divider);
+
+  // Top guide rail — a flat ceiling across the playfield plus a steep slanted
+  // deflector inside the launcher channel. The deflector catches balls rising
+  // in the channel and reflects them strongly leftward into the playfield.
+  // railPoints is kept as a smooth curve for visual rendering only.
+  const railSegments = [];
+  const railPoints = [];
+  {
+    // Visual curve: gentle arc across the playfield top
+    const cx = 40, cy = 70, rx = 495, ry = 38;
+    const steps = 32;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const angle = -Math.PI / 2 + t * (Math.PI / 2);
+      const x = cx + Math.cos(angle) * rx;
+      const y = cy + Math.sin(angle) * ry;
+      railPoints.push({ x, y });
+    }
+  }
+  // Physics body 1: flat ceiling spanning the playfield (x=0 to x=W-8) at y≈40
+  const ceilingY = 40;
+  const ceiling = Bodies.rectangle(W / 2 - 4, ceilingY, W - 8, 20, {
+    isStatic: true, restitution: 0.2, friction: 0.04, label: 'rail',
+  });
+  railSegments.push(ceiling);
+  // Physics body 2: steep slanted deflector inside the channel.
+  // Slants from upper-left (W-4, 35) down to lower-right (CANVAS_W, 95).
+  // A ball rising at x≈517 hits this and reflects strongly left-and-down.
+  const defA = { x: W - 4, y: 35 };
+  const defB = { x: CANVAS_W, y: 95 };
+  const defMx = (defA.x + defB.x) / 2;
+  const defMy = (defA.y + defB.y) / 2;
+  const defLen = Math.hypot(defB.x - defA.x, defB.y - defA.y);
+  const defAng = Math.atan2(defB.y - defA.y, defB.x - defA.x);
+  const deflector = Bodies.rectangle(defMx, defMy, defLen + 2, 18, {
+    isStatic: true, angle: defAng, restitution: 0.35, friction: 0.02, label: 'rail',
+  });
+  railSegments.push(deflector);
+  worldWalls.push(...railSegments);
+  Composite.add(world, railSegments);
+
+  // ---------- PEGS ----------
+  const pegs = [];
+  const PEG_R = 4.5;
+  // Staggered peg rows. Keep a gap at top (below the rail) and a pattern forming arrows above pockets.
+  const pegRows = [
+    { y: 140, cols: 10, sx: 35, sp: 46 },
+    { y: 182, cols: 11, sx: 16, sp: 46 },
+    { y: 224, cols: 10, sx: 35, sp: 46 },
+    { y: 266, cols: 11, sx: 16, sp: 46 },
+    { y: 308, cols: 10, sx: 35, sp: 46 },
+    { y: 350, cols: 11, sx: 16, sp: 46 },
+    { y: 392, cols: 10, sx: 35, sp: 46 },
+    { y: 434, cols: 11, sx: 16, sp: 46 },
+    { y: 476, cols: 10, sx: 35, sp: 46 },
+    { y: 518, cols: 11, sx: 16, sp: 46 },
+    { y: 560, cols: 10, sx: 35, sp: 46 },
+  ];
+  const pegOpts = { isStatic: true, restitution: 0.55, friction: 0.002, label: 'peg' };
+  pegRows.forEach(row => {
+    for (let c = 0; c < row.cols; c++) {
+      const x = row.sx + c * row.sp;
+      if (x < 14 || x > W - 14) continue;
+      // Carve a vertical channel above the jackpot for excitement — skip some center pegs in certain rows
+      const peg = Bodies.circle(x, row.y, PEG_R, pegOpts);
+      peg.customData = { flash: 0 };
+      pegs.push(peg);
+    }
+  });
+
+  // Diagonal guide pegs forming a funnel above the jackpot
+  const funnelPegs = [
+    // left diagonal above jackpot
+    { x: 180, y: 600 }, { x: 195, y: 615 }, { x: 210, y: 630 },
+    // right diagonal
+    { x: 320, y: 600 }, { x: 305, y: 615 }, { x: 290, y: 630 },
+  ];
+  funnelPegs.forEach(p => {
+    const peg = Bodies.circle(p.x, p.y, PEG_R + 0.5, pegOpts);
+    peg.customData = { flash: 0, fancy: true };
+    pegs.push(peg);
+  });
+
+  Composite.add(world, pegs);
+
+  // ---------- SPINNERS (WINDMILLS) ----------
+  // Three spinners. Use kinematic bodies that we rotate manually — they impart velocity to balls because
+  // Matter.js tracks their angular velocity when we set it.
+  const spinners = [];
+  function makeSpinner(cx, cy, length = 56, speed = 0.06) {
+    // Compound body: two blades (cross shape)
+    const blade1 = Bodies.rectangle(0, 0, length, 5);
+    const blade2 = Bodies.rectangle(0, 0, 5, length * 0.42);
+    const body = Body.create({
+      parts: [blade1, blade2],
+      isStatic: true,
+      label: 'spinner',
+      restitution: 0.6,
+      friction: 0.02,
+    });
+    Body.setPosition(body, { x: cx, y: cy });
+    body.customData = { cx, cy, speed, length, angle: 0, hitFlash: 0 };
+    spinners.push(body);
+    Composite.add(world, body);
+  }
+  makeSpinner(W / 2, 295, 58, 0.11);
+  makeSpinner(140, 460, 52, 0.13);
+  makeSpinner(360, 460, 52, -0.13);
+
+  // ---------- POCKETS ----------
+  // Sensors at the bottom that trigger wins when a ball enters.
+  const pockets = [];
+  function makePocket(x, y, w, h, value, kanji, color, kind) {
+    // Sensor extends higher than the visual pocket to catch balls resting on dividers
+    const sensorTop = y - 18;
+    const sensorH = h + 18;
+    const body = Bodies.rectangle(x + w/2, sensorTop + sensorH/2, w - 2, sensorH, {
+      isStatic: true,
+      isSensor: true,
+      label: 'pocket',
+    });
+    body.customData = { x, y, w, h, value, kanji, color, kind, flash: 0 };
+    pockets.push(body);
+    Composite.add(world, body);
+  }
+  // Layout: gutter, pocket, pocket, JACKPOT, pocket, pocket, gutter
+  // total width W = 500. Jackpot shrunk to 55px (was 130) so it's much harder to hit.
+  // gutter: 0-65 and 435-500
+  // sakura: 65-145, 355-435 (80 wide)
+  // fuku:   145-222, 278-355 (77 wide)
+  // jackpot: 222-278 (56 wide)
+  const POCKET_Y = 665;
+  const POCKET_H = 55;
+  makePocket(0, POCKET_Y, 65, POCKET_H, 0, '', '#222', 'gutter');
+  makePocket(65, POCKET_Y, 80, POCKET_H, 50, '桜', '#ffb7c5', 'sakura');
+  makePocket(145, POCKET_Y, 77, POCKET_H, 100, '福', '#ffe082', 'fuku');
+  makePocket(222, POCKET_Y, 56, POCKET_H, 500, '大当たり', '#e60012', 'jackpot');
+  makePocket(278, POCKET_Y, 77, POCKET_H, 100, '福', '#ffe082', 'fuku');
+  makePocket(355, POCKET_Y, 80, POCKET_H, 50, '桜', '#ffb7c5', 'sakura');
+  makePocket(435, POCKET_Y, 65, POCKET_H, 0, '', '#222', 'gutter');
+
+  // Pocket dividers — short triangular wedges so balls can't rest on top
+  const pocketDivs = [];
+  const divData = [
+    { x: 65 }, { x: 145 }, { x: 222 },
+    { x: 278 }, { x: 355 }, { x: 435 },
+  ];
+  divData.forEach(d => {
+    // Narrow triangle pointing up — apex at y = POCKET_Y - 2, base at POCKET_Y + 28
+    const apexY = POCKET_Y - 2;
+    const baseY = POCKET_Y + 30;
+    const halfW = 5;
+    const verts = [[
+      { x: 0, y: -((baseY - apexY) / 2) },
+      { x: halfW, y: (baseY - apexY) / 2 },
+      { x: -halfW, y: (baseY - apexY) / 2 },
+    ]];
+    const tri = Bodies.fromVertices(d.x, (apexY + baseY) / 2, verts, {
+      isStatic: true, restitution: 0.1, friction: 0.05, label: 'wall'
+    });
+    if (tri) pocketDivs.push(tri);
+  });
+  worldWalls.push(...pocketDivs);
+  Composite.add(world, pocketDivs);
+
+  // Small triangular peg blockers in gutters (aesthetic + play)
+  const gutterAngles = [
+    { x: 35, y: 635, angle: -0.3 },
+    { x: 35, y: 605, angle: 0.3 },
+    { x: 465, y: 635, angle: 0.3 },
+    { x: 465, y: 605, angle: -0.3 },
+  ];
+  gutterAngles.forEach(g => {
+    const b = Bodies.rectangle(g.x, g.y, 30, 4, { ...wallOpts, angle: g.angle });
+    worldWalls.push(b);
+    Composite.add(world, b);
+  });
+
+  // ---------- LAUNCHER ----------
+  // The launcher channel is on the right. Ball spawns near the bottom. Velocity determined by power.
+  const launcher = {
+    x: W + CH / 2,
+    y: H - 30,
+    minPower: 30,
+    maxPower: 44,
+  };
+
+  const balls = [];
+  const MAX_BALLS = 20;
+  // Collision categories: balls don't collide with each other so each ball's
+  // trajectory depends only on the fixed peg/wall layout + its launch velocity.
+  // This is what makes onchain-verified replays reproducible.
+  const CAT_BALL = 0x0002;
+  const CAT_WORLD = 0x0001;
+
+  function spawnBall(velocity, playback) {
+    if (balls.length >= MAX_BALLS) return null;
+    // Playback balls follow a pre-computed trajectory (no physics); use isStatic + manual
+    // position updates so live visual == seeded simulation == verify replay by construction.
+    const ball = Bodies.circle(launcher.x, launcher.y, 7, {
+      restitution: 0.48,
+      friction: 0.001,
+      frictionAir: 0.001,
+      density: 0.018,
+      label: 'ball',
+      collisionFilter: { category: CAT_BALL, mask: CAT_WORLD },
+      isStatic: !!playback,
+    });
+    ball.customData = {
+      age: 0, lastPos: { x: launcher.x, y: launcher.y }, stillTime: 0, trail: [], playId: null,
+      playback: playback || null,   // { trail, events, eventIdx, cursor, authSlot, landedLivePocket, ended }
+    };
+    if (playback) {
+      Body.setPosition(ball, playback.trail[0]);
+    } else {
+      Body.setVelocity(ball, velocity);
+    }
+    Composite.add(world, ball);
+    balls.push(ball);
+    state.ballsUsed++;
+    return ball;
+  }
+
+  function launchBall(deterministic) {
+    if (state.ballsRemaining <= 0) return null;
+    if (balls.length >= MAX_BALLS) return null;
+    const p = state.power;
+    let vx, vy;
+    if (deterministic) {
+      // Chain-derived params — power jittered slightly by seed, angle biased by seed
+      vy = -(launcher.minPower + (launcher.maxPower - launcher.minPower) * p) + deterministic.vyJitter;
+      vx = deterministic.vx;
+    } else {
+      vy = -(launcher.minPower + (launcher.maxPower - launcher.minPower) * p);
+      vx = -0.3 - Math.random() * 0.2;
+    }
+    state.ballsRemaining--;
+    // If the chain layer pre-computed a trajectory, use it for kinematic playback.
+    const playback = deterministic && deterministic.simTrail && deterministic.simTrail.length
+      ? {
+          trail: deterministic.simTrail,
+          events: deterministic.simEvents || [],
+          eventIdx: 0,
+          cursor: 0,
+          authSlot: deterministic.authSlot,
+          landedLivePocket: deterministic.landedLivePocket || null,
+          ended: false,
+        }
+      : null;
+    const ball = spawnBall({ x: vx, y: vy }, playback);
+    soundLaunch();
+    ui.balls.textContent = state.ballsRemaining;
+    ui.used.textContent = state.ballsUsed;
+    return ball;
+  }
+
+  // ---------- PARTICLES ----------
+  const particles = [];
+  const MAX_PARTICLES = 220; // hard cap to prevent runaway particle counts during fever spam
+  function spawnParticles(x, y, count, colors, opts = {}) {
+    const budget = MAX_PARTICLES - particles.length;
+    if (budget <= 0) return;
+    const actual = Math.min(count, budget);
+    for (let i = 0; i < actual; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const speed = (opts.speed || 3) * (0.4 + Math.random());
+      particles.push({
+        x, y,
+        vx: Math.cos(ang) * speed,
+        vy: Math.sin(ang) * speed - (opts.upward || 0),
+        life: opts.life || 40,
+        maxLife: opts.life || 40,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        size: (opts.size || 3) * (0.5 + Math.random()),
+        gravity: opts.gravity !== undefined ? opts.gravity : 0.12,
+        shape: opts.shape || 'circle',
+      });
+    }
+  }
+
+  // ---------- COLLISIONS ----------
+  Events.on(engine, 'collisionStart', (e) => {
+    e.pairs.forEach(pair => {
+      const { bodyA, bodyB } = pair;
+      const labels = [bodyA.label, bodyB.label];
+
+      // Playback balls are driven by pre-recorded sim events in the game loop; ignore any
+      // collisions Matter still reports for them here to avoid double-scoring/flashing.
+      const ballBody = bodyA.label === 'ball' ? bodyA : (bodyB.label === 'ball' ? bodyB : null);
+      if (ballBody && ballBody.customData && ballBody.customData.playback) return;
+
+      // Ball hits peg
+      if (labels.includes('ball') && labels.includes('peg')) {
+        const peg = bodyA.label === 'peg' ? bodyA : bodyB;
+        peg.customData.flash = 12;
+        state.score += 1;
+        ui.score.textContent = state.score;
+        soundPeg();
+        spawnParticles(peg.position.x, peg.position.y, 4, ['#ffe082', '#ffd54f', '#fff8a0'], {
+          speed: 2, life: 18, size: 2, gravity: 0.05
+        });
+      }
+
+      // Ball hits spinner
+      if (labels.includes('ball') && labels.includes('spinner')) {
+        const spinner = bodyA.label === 'spinner' ? bodyA : bodyB;
+        spinner.customData.hitFlash = 14;
+        state.score += 10;
+        ui.score.textContent = state.score;
+        soundSpinner();
+        spawnParticles(spinner.position.x, spinner.position.y, 8,
+          ['#e60012', '#ffe082', '#fff'], { speed: 3.5, life: 25, size: 3, gravity: 0.1 });
+      }
+
+      // Ball hits rail (just a soft tick)
+      if (labels.includes('ball') && labels.includes('rail')) {
+        if (Math.random() < 0.3) soundPeg();
+      }
+
+      // Ball enters pocket (sensor)
+      if (labels.includes('ball') && labels.includes('pocket')) {
+        const pocket = bodyA.label === 'pocket' ? bodyA : bodyB;
+        const ball = bodyA.label === 'ball' ? bodyA : bodyB;
+        handlePocketEntry(ball, pocket);
+      }
+    });
+  });
+
+  function handlePocketEntry(ball, pocket) {
+    // Remove the ball
+    const idx = balls.indexOf(ball);
+    if (idx !== -1) {
+      Composite.remove(world, ball);
+      balls.splice(idx, 1);
+    } else {
+      return; // already handled
+    }
+
+    // Flash the pocket the live ball actually hit (visual only).
+    pocket.customData.flash = 30;
+
+    // Score is driven by the AUTHORITATIVE seed-derived outcome, not wherever live
+    // physics happened to land. This guarantees state.score matches the feed entry,
+    // which in turn matches the verify modal's re-simulation.
+    let data = pocket.customData;
+    if (typeof chain !== 'undefined' && ball.customData && ball.customData.playId) {
+      const entry = chain.getPlay(ball.customData.playId);
+      if (entry && entry.authSlot) data = entry.authSlot;
+    }
+
+    if (data.kind === 'gutter') {
+      soundLose();
+      spawnParticles(ball.position.x, ball.position.y, 6, ['#444', '#666'], {
+        speed: 1.5, life: 20, size: 2, gravity: 0.08
+      });
+      return;
+    }
+
+    // Win!
+    const now = performance.now();
+    const comboBonus = (now - state.lastWinTime < 2500) ? state.combo * 10 : 0;
+    state.combo = (now - state.lastWinTime < 2500) ? state.combo + 1 : 1;
+    state.lastWinTime = now;
+
+    const mult = state.fever > 0 ? state.feverMultiplier : 1;
+    const points = (data.value + comboBonus) * mult;
+    state.score += points;
+    state.scorePop = 30; // animate score display
+
+    if (data.kind === 'jackpot') {
+      state.jackpots++;
+      state.ballsRemaining += 20 * mult;
+      soundJackpot();
+      showJackpotFlash();
+      addShake(45, 18);
+      spawnParticles(data.x + data.w/2, data.y, 120,
+        ['#e60012', '#ffe082', '#fff', '#ffb7c5', '#ffd700'],
+        { speed: 10, life: 80, size: 5, gravity: 0.12, upward: 5 });
+      // Confetti bursts across the field over 1.5 seconds
+      for (let wave = 0; wave < 5; wave++) {
+        setTimeout(() => {
+          for (let i = 0; i < 7; i++) {
+            spawnParticles(
+              30 + Math.random() * (W - 60),
+              60 + Math.random() * (H - 250),
+              14, ['#e60012', '#ffe082', '#fff', '#ffb7c5', '#ffd700', '#ff6080'],
+              { speed: 6, life: 55, size: 4, gravity: 0.1, upward: 3 }
+            );
+          }
+          addShake(12, 6);
+        }, 150 + wave * 260);
+      }
+      // Trigger FEVER mode (unless already active)
+      if (state.fever <= 0) {
+        triggerFever();
+      } else {
+        // refresh fever duration
+        state.fever = FEVER_DURATION;
+      }
+    } else if (data.kind === 'fuku') {
+      state.wins++;
+      state.ballsRemaining += 5 * mult;
+      soundWin();
+      addShake(10, 4);
+      spawnParticles(data.x + data.w/2, data.y, 28,
+        ['#ffe082', '#fff8a0', '#fff'], { speed: 5, life: 40, size: 3.5, gravity: 0.1, upward: 2.5 });
+    } else if (data.kind === 'sakura') {
+      state.wins++;
+      state.ballsRemaining += 2 * mult;
+      soundWin();
+      addShake(6, 3);
+      spawnParticles(data.x + data.w/2, data.y, 24,
+        ['#ffb7c5', '#ffd4dc', '#fff'], { speed: 3.5, life: 40, size: 3.5, gravity: 0.08, upward: 2.5 });
+    }
+
+    // Update UI
+    ui.score.textContent = state.score;
+    ui.balls.textContent = state.ballsRemaining;
+    ui.jackpots.textContent = state.jackpots;
+    ui.wins.textContent = state.wins;
+    ui.combo.textContent = state.combo > 1 ? state.combo + '×' : '0';
+
+    if (state.score > state.hiScore) {
+      state.hiScore = state.score;
+      localStorage.setItem('pachinko-hi', state.hiScore);
+      ui.hiscore.textContent = state.hiScore;
+    }
+  }
+
+  // ---------- UI REFS ----------
+  const ui = {
+    score: document.getElementById('score'),
+    hiscore: document.getElementById('hiscore'),
+    balls: document.getElementById('balls-remaining'),
+    used: document.getElementById('balls-used'),
+    jackpots: document.getElementById('jackpots'),
+    wins: document.getElementById('wins'),
+    combo: document.getElementById('combo'),
+    power: document.getElementById('power-fill'),
+    knob: document.getElementById('launcher-knob'),
+    flash: document.getElementById('win-flash'),
+    gameOver: document.getElementById('game-over'),
+    finalScore: document.getElementById('final-score'),
+    sound: document.getElementById('btn-sound'),
+  };
+  // Mirror sidebar stats to mobile HUD (HUD is only visible on ≤640px but mirroring
+  // unconditionally keeps the code simple and cheap).
+  [
+    [ui.score, document.getElementById('hud-score')],
+    [ui.balls, document.getElementById('hud-balls')],
+    [ui.jackpots, document.getElementById('hud-jackpots')],
+  ].forEach(([src, dst]) => {
+    if (!src || !dst) return;
+    new MutationObserver(() => { dst.textContent = src.textContent; })
+      .observe(src, { childList: true, characterData: true, subtree: true });
+    dst.textContent = src.textContent;
+  });
+  ui.hiscore.textContent = state.hiScore;
+  ui.balls.textContent = state.ballsRemaining;
+
+  function showJackpotFlash() {
+    ui.flash.classList.add('show');
+    setTimeout(() => ui.flash.classList.remove('show'), 1400);
+  }
+
+  // ---------- SOLANA CHAIN LAYER ----------
+  // Provably-fair mechanism:
+  //   1. Player pays 0.001 SOL devnet (self-transfer + memo) before each launch.
+  //   2. Once confirmed, the tx signature + blockhash are hashed → 256-bit seed.
+  //   3. Seed drives a deterministic PRNG → launch angle/power → deterministic physics
+  //      (fixed 8.333ms step, ball-ball collisions disabled, seeded RNG for stuck-nudges).
+  //   4. Anyone can click "Verify" on a feed entry to replay the sim from the onchain seed
+  //      and confirm the outcome matches — no server required.
+  const chain = (() => {
+    const { Connection, Keypair, PublicKey, SystemProgram, Transaction, TransactionInstruction, LAMPORTS_PER_SOL } = solanaWeb3;
+    // Public Solana devnet RPC — dRPC free tier blocks getBalance, getLatestBlockhash,
+    // and other methods we need ("method is not available on freetier"), so stick with
+    // the official endpoint. If rate limits bite in the future, put a paid RPC here.
+    const RPC_HTTP = 'https://api.devnet.solana.com';
+    const RPC_WS = 'wss://api.devnet.solana.com';
+    const MEMO_PROGRAM_ID = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
+    const PLAY_COST = Math.floor(0.001 * LAMPORTS_PER_SOL); // 1_000_000 lamports
+
+    const conn = new Connection(RPC_HTTP, { commitment: 'confirmed', wsEndpoint: RPC_WS });
+    // dRPC devnet doesn't expose requestAirdrop; use the public Solana faucet RPC for that only.
+    const faucetConn = new Connection('https://api.devnet.solana.com', 'confirmed');
+
+    // Wallet state
+    let provider = null;        // 'burner' | 'phantom'
+    let publicKey = null;       // PublicKey
+    let burnerKeypair = null;   // Keypair (present only for provider='burner')
+    let phantomAdapter = null;  // window.phantom.solana | window.solana
+    let balance = 0;
+    let pendingTx = false;
+
+    // Session (one tx commits a seed; every ball derives from sessionSeed+ballIndex)
+    let sessionSig = null;
+    let sessionBlockhash = null;
+    let sessionSeed = null;
+    let ballIndex = 0;
+
+    // Feed / plays
+    const plays = new Map();    // playId → entry
+    let playCounter = 0;
+    const MAX_FEED = 20;
+
+    // UI refs
+    const addrEl = document.getElementById('wallet-addr');
+    const balEl = document.getElementById('wallet-balance');
+    const statusEl = document.getElementById('tx-status');
+    const btnGuest = document.getElementById('btn-play-guest');
+    const btnPhantom = document.getElementById('btn-connect-phantom');
+    const btnAirdrop = document.getElementById('btn-airdrop');
+    const btnDisconnect = document.getElementById('btn-disconnect');
+    const feedList = document.getElementById('feed-list');
+    const knob = document.getElementById('launcher-knob');
+
+    // ---------- Helpers ----------
+    function shortAddr(pk) {
+      const s = pk.toBase58();
+      return s.slice(0, 4) + '..' + s.slice(-4);
+    }
+    function setStatus(msg, kind) {
+      statusEl.textContent = msg || '';
+      statusEl.className = kind || '';
+    }
+    async function refreshBalance() {
+      if (!publicKey) { balance = 0; balEl.textContent = '0.000'; return; }
+      // Try both RPCs and take the max: dRPC (main conn) can lag behind public
+      // devnet by many seconds, so an airdrop may land on the faucet RPC first.
+      let best = 0;
+      const results = await Promise.allSettled([
+        conn.getBalance(publicKey),
+        faucetConn.getBalance(publicKey),
+      ]);
+      for (const r of results) {
+        if (r.status === 'fulfilled' && typeof r.value === 'number' && r.value > best) best = r.value;
+      }
+      balance = best / LAMPORTS_PER_SOL;
+      balEl.textContent = balance.toFixed(3);
+    }
+
+    function updateWalletUI() {
+      if (!publicKey) {
+        addrEl.textContent = 'Not connected';
+        addrEl.classList.remove('connected');
+        btnGuest.style.display = '';
+        btnPhantom.style.display = '';
+        btnAirdrop.disabled = true;
+        btnDisconnect.style.display = 'none';
+        return;
+      }
+      addrEl.textContent = shortAddr(publicKey);
+      addrEl.classList.add('connected');
+      btnGuest.style.display = 'none';
+      btnPhantom.style.display = 'none';
+      btnAirdrop.disabled = false;
+      btnDisconnect.style.display = '';
+    }
+
+    // ---------- Burner wallet (Play as Guest) ----------
+    const BURNER_STORAGE_KEY = 'pachinko-burner-sk-v1';
+    function loadBurner() {
+      try {
+        const b64 = localStorage.getItem(BURNER_STORAGE_KEY);
+        if (!b64) return null;
+        const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+        return Keypair.fromSecretKey(bytes);
+      } catch (_) { return null; }
+    }
+    function saveBurner(kp) {
+      const b64 = btoa(String.fromCharCode(...kp.secretKey));
+      localStorage.setItem(BURNER_STORAGE_KEY, b64);
+    }
+    async function playAsGuest() {
+      setStatus('Creating burner wallet…', 'pending');
+      let kp = loadBurner();
+      if (!kp) {
+        kp = Keypair.generate();
+        saveBurner(kp);
+      }
+      burnerKeypair = kp;
+      publicKey = kp.publicKey;
+      provider = 'burner';
+      updateWalletUI();
+      await refreshBalance();
+      // Auto-airdrop if balance is very low so judges can play instantly
+      if (balance < 0.005) {
+        setStatus('Funding burner via devnet airdrop…', 'pending');
+        await airdrop().catch(e => setStatus('Airdrop failed: ' + e.message, 'error'));
+      } else {
+        setStatus('Guest wallet ready · ' + balance.toFixed(3) + ' SOL', 'ok');
+      }
+    }
+
+    // ---------- Phantom ----------
+    function detectPhantom() {
+      if (window.phantom?.solana?.isPhantom) return window.phantom.solana;
+      if (window.solana?.isPhantom) return window.solana;
+      return null;
+    }
+    async function connectPhantom() {
+      const p = detectPhantom();
+      if (!p) {
+        setStatus('Phantom not installed — use Play as Guest', 'error');
+        return;
+      }
+      try {
+        setStatus('Connecting Phantom…', 'pending');
+        const res = await p.connect();
+        phantomAdapter = p;
+        publicKey = res.publicKey;
+        provider = 'phantom';
+        updateWalletUI();
+        await refreshBalance();
+        setStatus('Phantom connected · ' + balance.toFixed(3) + ' SOL', 'ok');
+      } catch (e) {
+        setStatus('Phantom rejected: ' + (e.message || 'unknown'), 'error');
+      }
+    }
+
+    async function airdrop() {
+      if (!publicKey) return;
+      // Try 0.5 SOL first (devnet faucet often rate-limits 1 SOL but allows smaller)
+      for (const amount of [0.5, 0.25]) {
+        setStatus(`Requesting ${amount} SOL airdrop (devnet)…`, 'pending');
+        try {
+          const sig = await faucetConn.requestAirdrop(publicKey, Math.floor(amount * LAMPORTS_PER_SOL));
+          await faucetConn.confirmTransaction(sig, 'confirmed');
+          await refreshBalance();
+          setStatus('Airdrop confirmed · ' + balance.toFixed(3) + ' SOL', 'ok');
+          return;
+        } catch (e) {
+          // try next amount, or fall through to manual link
+        }
+      }
+      // Manual fallback: link to external faucet
+      const addr = publicKey.toBase58();
+      statusEl.innerHTML = `Faucet rate-limited. <a href="https://faucet.solana.com/?walletAddress=${addr}" target="_blank" style="color:#8ae9ff;text-decoration:underline">Get devnet SOL manually →</a>`;
+      statusEl.className = 'error';
+      // Poll balance every 3s for 2 minutes so manual airdrop updates the UI
+      let ticks = 0;
+      const poll = setInterval(async () => {
+        ticks++;
+        if (ticks > 40 || balance > 0.001) { clearInterval(poll); return; }
+        await refreshBalance();
+        if (balance > 0.001) {
+          clearInterval(poll);
+          setStatus('Funded · ' + balance.toFixed(3) + ' SOL', 'ok');
+        }
+      }, 3000);
+    }
+
+    function disconnect() {
+      if (provider === 'phantom' && phantomAdapter) {
+        try { phantomAdapter.disconnect(); } catch (_) {}
+      }
+      provider = null;
+      publicKey = null;
+      burnerKeypair = null;
+      phantomAdapter = null;
+      balance = 0;
+      sessionSig = null;
+      sessionBlockhash = null;
+      sessionSeed = null;
+      ballIndex = 0;
+      updateWalletUI();
+      updateSessionUI();
+      setStatus('');
+    }
+
+    // ---------- Tx submission ----------
+    // ONE session tx — commits a seed onchain. All N balls derive from it deterministically.
+    async function submitSessionTx() {
+      if (!publicKey) throw new Error('no wallet');
+      if (balance < 0.001 + 0.000005) throw new Error('insufficient SOL');
+
+      const memoPayload = JSON.stringify({
+        game: 'sakura-pachinko',
+        kind: 'session-start',
+        v: 1,
+        nonce: Math.floor(Math.random() * 0xFFFFFFFF),
+      });
+      const memoIx = new TransactionInstruction({
+        keys: [{ pubkey: publicKey, isSigner: true, isWritable: false }],
+        programId: MEMO_PROGRAM_ID,
+        data: new TextEncoder().encode(memoPayload),
+      });
+      const transferIx = SystemProgram.transfer({
+        fromPubkey: publicKey,
+        toPubkey: publicKey,
+        lamports: PLAY_COST,
+      });
+      const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash('confirmed');
+      const tx = new Transaction({ feePayer: publicKey, blockhash, lastValidBlockHeight })
+        .add(memoIx, transferIx);
+
+      let sig;
+      if (provider === 'burner') {
+        tx.sign(burnerKeypair);
+        sig = await conn.sendRawTransaction(tx.serialize(), { skipPreflight: false });
+      } else if (provider === 'phantom') {
+        const sent = await phantomAdapter.signAndSendTransaction(tx);
+        sig = sent.signature || sent;
+      } else {
+        throw new Error('no provider');
+      }
+      await conn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
+      return { signature: sig, blockhash, memo: memoPayload };
+    }
+
+    // Open a new session: one onchain commitment → seeds every subsequent ball.
+    async function startSession() {
+      if (pendingTx) return false;
+      pendingTx = true;
+      setStatus('Committing session seed onchain (1 tx)…', 'pending');
+      try {
+        const tx = await submitSessionTx();
+        sessionSig = tx.signature;
+        sessionBlockhash = tx.blockhash;
+        sessionSeed = await deriveSeed(sessionSig, sessionBlockhash);
+        ballIndex = 0;
+        setStatus('Session ready · ' + sessionSig.slice(0, 8) + '… · play any number of balls', 'ok');
+        updateSessionUI();
+        refreshBalance();
+        return true;
+      } catch (e) {
+        setStatus('Session start failed: ' + (e.message || 'unknown').slice(0, 80), 'error');
+        return false;
+      } finally {
+        pendingTx = false;
+      }
+    }
+
+    function updateSessionUI() {
+      const sessionEl = document.getElementById('session-info');
+      if (!sessionEl) return;
+      if (!sessionSig) {
+        sessionEl.innerHTML = '';
+        sessionEl.style.display = 'none';
+        return;
+      }
+      const sig = sessionSig;
+      sessionEl.style.display = '';
+      sessionEl.innerHTML = `
+        <span class="sess-label">Session</span>
+        <a href="https://explorer.solana.com/tx/${sig}?cluster=devnet" target="_blank" rel="noopener">${sig.slice(0, 6)}…${sig.slice(-4)}</a>
+        <span class="sess-balls">ball #${ballIndex}</span>
+      `;
+    }
+
+    // ---------- Seed derivation ----------
+    async function deriveSeed(sig, blockhash) {
+      // hash = SHA-256(sig_bytes || blockhash_bytes)
+      const sigBytes = base58Decode(sig);
+      const bhBytes = base58Decode(blockhash);
+      const combined = new Uint8Array(sigBytes.length + bhBytes.length);
+      combined.set(sigBytes, 0);
+      combined.set(bhBytes, sigBytes.length);
+      const hashBuf = await crypto.subtle.digest('SHA-256', combined);
+      return new Uint8Array(hashBuf);
+    }
+    function seedToHex(seed) {
+      return Array.from(seed).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    // Per-ball seed = SHA-256(sessionSeed || uint32BE(ballIndex)). Deterministic + verifiable.
+    async function deriveBallSeed(sSeed, idx) {
+      const idxBytes = new Uint8Array(4);
+      new DataView(idxBytes.buffer).setUint32(0, idx, false);
+      const combined = new Uint8Array(sSeed.length + 4);
+      combined.set(sSeed, 0);
+      combined.set(idxBytes, sSeed.length);
+      const hashBuf = await crypto.subtle.digest('SHA-256', combined);
+      return new Uint8Array(hashBuf);
+    }
+    // Seeded PRNG (mulberry32) from first 4 bytes
+    function makeRng(seed32) {
+      let s = seed32 >>> 0;
+      return () => {
+        s = (s + 0x6D2B79F5) >>> 0;
+        let t = Math.imul(s ^ (s >>> 15), 1 | s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+    // Base58 decoder (Solana signatures/blockhashes are base58)
+    const B58_ALPHA = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+    const B58_MAP = (() => { const m = new Int8Array(128).fill(-1); for (let i = 0; i < B58_ALPHA.length; i++) m[B58_ALPHA.charCodeAt(i)] = i; return m; })();
+    function base58Decode(str) {
+      let zeros = 0;
+      while (zeros < str.length && str.charCodeAt(zeros) === 49) zeros++;
+      const bytes = [];
+      for (let i = zeros; i < str.length; i++) {
+        let carry = B58_MAP[str.charCodeAt(i)];
+        if (carry < 0) throw new Error('bad base58');
+        for (let j = 0; j < bytes.length; j++) {
+          carry += bytes[j] * 58;
+          bytes[j] = carry & 0xff;
+          carry >>= 8;
+        }
+        while (carry) { bytes.push(carry & 0xff); carry >>= 8; }
+      }
+      const out = new Uint8Array(zeros + bytes.length);
+      for (let i = 0; i < bytes.length; i++) out[zeros + bytes.length - 1 - i] = bytes[i];
+      return out;
+    }
+
+    function deriveLaunchParams(seed, power) {
+      // First 4 bytes → seed for mulberry32 PRNG
+      const seed32 = (seed[0] << 24) | (seed[1] << 16) | (seed[2] << 8) | seed[3];
+      const rng = makeRng(seed32 >>> 0);
+      // Angle offset: -0.5 to -0.1 (leftward into the field), widened by seed
+      const vx = -0.2 - rng() * 0.5;
+      // Power jitter: tiny, keeps player's power input dominant
+      const vyJitter = (rng() - 0.5) * 2.0;
+      return { vx, vyJitter, rng };
+    }
+
+    // Snapshot spinner positions/angles at launch time so verify-replay can reproduce
+    // the exact same deflection pattern the ball actually saw.
+    function captureSpinnerStates() {
+      return spinners.map(sp => ({
+        cx: sp.customData.cx,
+        cy: sp.customData.cy,
+        length: sp.customData.length,
+        speed: sp.customData.speed,
+        angle: sp.customData.angle,
+      }));
+    }
+
+    // ---------- Main release handler (replaces local launchBall for chain players) ----------
+    // Zero tx per ball: the session commitment already happened. Each ball's seed is
+    // SHA-256(sessionSeed || ballIndex) — anyone can reproduce it from the onchain session tx.
+    async function onRelease(capturedPower) {
+      if (state.gameOver) return;
+      if (state.ballsRemaining <= 0) return;
+      if (!publicKey) {
+        setStatus('Click Play as Guest or Connect Phantom first', 'error');
+        launchBall();
+        return;
+      }
+      if (!sessionSig) {
+        const ok = await startSession();
+        if (!ok) { launchBall(); return; }
+      }
+
+      const thisIdx = ballIndex++;
+      const seed = await deriveBallSeed(sessionSeed, thisIdx);
+      const params = deriveLaunchParams(seed, capturedPower);
+      const spinnerStates = captureSpinnerStates();
+
+      const entry = {
+        id: ++playCounter,
+        signature: sessionSig,
+        blockhash: sessionBlockhash,
+        ballIndex: thisIdx,
+        seedHex: seedToHex(seed),
+        power: capturedPower,
+        vx: params.vx,
+        vyJitter: params.vyJitter,
+        spinnerStates,
+        ts: Date.now(),
+      };
+      // Pre-compute the AUTHORITATIVE outcome from the onchain seed. Live ball is visual;
+      // scoring + feed entry reflect this deterministic result so verify always matches.
+      const sim = simulateBallTrajectory(entry);
+      const authSlot = sim.landedSlot
+        ? { kind: sim.landedSlot.kind, value: sim.landedSlot.value, label: sim.landedSlot.kanji || sim.landedSlot.label || '外', x: sim.landedSlot.x, y: sim.landedSlot.y, w: sim.landedSlot.w, h: sim.landedSlot.h }
+        : { kind: 'lost', value: 0, label: '外' };
+      entry.slot = authSlot;
+      entry.authSlot = authSlot;
+      entry.pending = false;
+      plays.set(entry.id, entry);
+      renderFeed();
+      updateSessionUI();
+
+      state.power = capturedPower;
+      const ball = launchBall({
+        vx: params.vx, vyJitter: params.vyJitter,
+        simTrail: sim.trail, simEvents: sim.events, landedLivePocket: sim.landedLivePocket, authSlot,
+      });
+      state.power = 0;
+      if (ball) ball.customData.playId = entry.id;
+    }
+
+    function getPlay(playId) { return plays.get(playId); }
+
+    // ---------- Feed ----------
+    function onPocketResult(playId, data) {
+      const e = plays.get(playId);
+      if (!e || !e.pending) return;
+      e.pending = false;
+      e.slot = { kind: data.kind, value: data.value, label: data.label || data.kanji || '外' };
+      renderFeed();
+    }
+    function renderFeed() {
+      const entries = Array.from(plays.values()).sort((a, b) => b.id - a.id).slice(0, MAX_FEED);
+      if (entries.length === 0) {
+        feedList.innerHTML = '<div style="color:#7a5ba8;font-size:10px;text-align:center;padding:10px">No plays yet — launch to create the first onchain record.</div>';
+        return;
+      }
+      feedList.innerHTML = '';
+      for (const e of entries) {
+        const div = document.createElement('div');
+        div.className = 'feed-item' + (e.slot && e.slot.kind === 'jackpot' ? ' jackpot' : '');
+        const result = e.pending ? '…'
+          : e.slot.kind === 'jackpot' ? '大当たり +' + e.slot.value
+          : e.slot.kind === 'fuku' ? '福 +' + e.slot.value
+          : e.slot.kind === 'sakura' ? '桜 +' + e.slot.value
+          : e.slot.kind === 'lost' ? '外 0'
+          : '外 0';
+        const shortSig = e.signature.slice(0, 6) + '…' + e.signature.slice(-4);
+        const idxLabel = e.ballIndex !== undefined ? `#${e.ballIndex}` : '';
+        div.innerHTML = `
+          <div class="feed-row">
+            <span class="sig"><a href="https://explorer.solana.com/tx/${e.signature}?cluster=devnet" target="_blank" rel="noopener">${shortSig}</a> <span class="ball-idx">${idxLabel}</span></span>
+            <span class="result">${result}</span>
+          </div>
+          <div class="feed-row">
+            <span class="seed" title="${e.seedHex}">seed ${e.seedHex.slice(0, 12)}…</span>
+            <button class="verify-btn" data-play-id="${e.id}" ${e.pending ? 'disabled' : ''}>${e.pending ? '...' : 'Verify'}</button>
+          </div>
+        `;
+        feedList.appendChild(div);
+      }
+      feedList.querySelectorAll('.verify-btn').forEach(btn => {
+        btn.addEventListener('click', () => openVerifyModal(parseInt(btn.dataset.playId, 10)));
+      });
+    }
+
+    // ---------- Verify Modal (isolated physics replay) ----------
+    let currentVerifyEntry = null;
+    function openVerifyModal(playId) {
+      const e = plays.get(playId);
+      if (!e) return;
+      currentVerifyEntry = e;
+      const sigEl = document.getElementById('v-sig');
+      sigEl.textContent = e.signature.slice(0, 16) + '…' + e.signature.slice(-8);
+      sigEl.title = e.signature + ' (click to view on Solana Explorer)';
+      sigEl.href = `https://explorer.solana.com/tx/${e.signature}?cluster=devnet`;
+      document.getElementById('v-blockhash').textContent = e.blockhash.slice(0, 16) + '…' + e.blockhash.slice(-8);
+      document.getElementById('v-blockhash').title = e.blockhash;
+      const ballIdxEl = document.getElementById('v-ball-idx');
+      if (ballIdxEl) ballIdxEl.textContent = e.ballIndex !== undefined ? '#' + e.ballIndex : '(legacy)';
+      document.getElementById('v-seed').textContent = e.seedHex.slice(0, 32) + '…';
+      document.getElementById('v-seed').title = e.seedHex;
+      document.getElementById('v-params').textContent = `vx=${e.vx.toFixed(4)}, vyJ=${e.vyJitter.toFixed(4)}, power=${e.power.toFixed(3)}`;
+      document.getElementById('v-original').textContent = e.slot ? e.slot.label + ' (+' + e.slot.value + ')' : '—';
+      document.getElementById('v-status').textContent = 'Replaying physics from onchain seed…';
+      document.getElementById('v-status').className = 'verify-status';
+      document.getElementById('verify-modal').classList.add('show');
+      runVerifyReplay(e);
+    }
+    function closeVerifyModal() {
+      document.getElementById('verify-modal').classList.remove('show');
+    }
+    // Recover a rectangle body's original width/height from its vertex edges.
+    // Bounds would inflate after rotation; edge distances stay invariant.
+    function wallDimensions(body) {
+      const v = body.vertices;
+      const w = Math.hypot(v[1].x - v[0].x, v[1].y - v[0].y);
+      const h = Math.hypot(v[2].x - v[1].x, v[2].y - v[1].y);
+      return { w, h };
+    }
+
+    // Runs a full deterministic physics simulation in an isolated Matter engine.
+    // Returns { trail: [{x,y}...], landedSlot }. Same code path for live play AND
+    // the verify modal, so outcomes match by construction.
+    function simulateBallTrajectory(entry) {
+      const { Engine, Bodies, Body, Composite, Events } = Matter;
+      const e2 = Engine.create();
+      e2.gravity.y = 0.75;
+      e2.positionIterations = 12;
+      e2.velocityIterations = 10;
+      e2.constraintIterations = 4;
+      const w2 = e2.world;
+
+      // Track mappings so collision events in the sim can reference the LIVE bodies,
+      // which lets the game loop flash the correct peg/spinner during kinematic playback.
+      const simToLivePeg = new Map();
+      for (const peg of pegs) {
+        const sp2 = Bodies.circle(peg.position.x, peg.position.y, peg.circleRadius, { isStatic: true, restitution: peg.restitution, friction: peg.friction, label: peg.label });
+        simToLivePeg.set(sp2.id, peg);
+        Composite.add(w2, sp2);
+      }
+      for (const wall of worldWalls) {
+        const dims = wallDimensions(wall);
+        Composite.add(w2, Bodies.rectangle(wall.position.x, wall.position.y, dims.w, dims.h, { isStatic: true, restitution: wall.restitution, friction: wall.friction, angle: wall.angle, label: wall.label }));
+      }
+      const simSpinners = [];
+      const simToLiveSpinner = new Map();
+      const spinnerStates = entry.spinnerStates || captureSpinnerStates();
+      for (let i = 0; i < spinnerStates.length; i++) {
+        const ss = spinnerStates[i];
+        const blade1 = Bodies.rectangle(0, 0, ss.length, 5);
+        const blade2 = Bodies.rectangle(0, 0, 5, ss.length * 0.42);
+        const sp = Body.create({ parts: [blade1, blade2], isStatic: true, label: 'spinner', restitution: 0.6, friction: 0.02 });
+        Body.setPosition(sp, { x: ss.cx, y: ss.cy });
+        Body.setAngle(sp, ss.angle);
+        sp.__spin = { angle: ss.angle, speed: ss.speed };
+        simSpinners.push(sp);
+        if (spinners[i]) simToLiveSpinner.set(sp.id, spinners[i]);
+        Composite.add(w2, sp);
+      }
+      const pocketMap = new Map();
+      const simToLivePocket = new Map();
+      for (const p of pockets) {
+        const b = Bodies.rectangle(p.position.x, p.position.y, p.bounds.max.x - p.bounds.min.x, p.bounds.max.y - p.bounds.min.y, { isStatic: true, isSensor: true, label: 'pocket' });
+        pocketMap.set(b.id, p.customData);
+        simToLivePocket.set(b.id, p);
+        Composite.add(w2, b);
+      }
+
+      const vy = -(launcher.minPower + (launcher.maxPower - launcher.minPower) * entry.power) + entry.vyJitter;
+      const ball = Bodies.circle(launcher.x, launcher.y, 7, {
+        restitution: 0.48, friction: 0.001, frictionAir: 0.001, density: 0.018, label: 'ball',
+      });
+      Body.setVelocity(ball, { x: entry.vx, y: vy });
+      Composite.add(w2, ball);
+
+      const trail = [];
+      const events = []; // { frame, type: 'peg'|'spinner'|'pocket', liveBody }
+      const pegHit = new Set();
+      const spinnerHit = new Set();
+      let landedSlot = null;
+      let landedLivePocket = null;
+      Events.on(e2, 'collisionStart', (ev) => {
+        const frame = trail.length; // frame index this event will "belong to" in playback
+        for (const pair of ev.pairs) {
+          const a = pair.bodyA.label, b = pair.bodyB.label;
+          if ((a === 'ball' && b === 'pocket') || (a === 'pocket' && b === 'ball')) {
+            const pocketBody = pair.bodyA.label === 'pocket' ? pair.bodyA : pair.bodyB;
+            landedSlot = pocketMap.get(pocketBody.id);
+            landedLivePocket = simToLivePocket.get(pocketBody.id) || null;
+          } else if ((a === 'ball' && b === 'peg') || (a === 'peg' && b === 'ball')) {
+            const pegBody = pair.bodyA.label === 'peg' ? pair.bodyA : pair.bodyB;
+            if (!pegHit.has(pegBody.id)) {
+              pegHit.add(pegBody.id);
+              const livePeg = simToLivePeg.get(pegBody.id);
+              if (livePeg) events.push({ frame, type: 'peg', liveBody: livePeg });
+            }
+          } else if ((a === 'ball' && b === 'spinner') || (a === 'spinner' && b === 'ball')) {
+            const spBody = pair.bodyA.label === 'spinner' ? pair.bodyA : pair.bodyB;
+            if (!spinnerHit.has(spBody.id)) {
+              spinnerHit.add(spBody.id);
+              const liveSp = simToLiveSpinner.get(spBody.id);
+              if (liveSp) events.push({ frame, type: 'spinner', liveBody: liveSp });
+            }
+          }
+        }
+      });
+
+      let stillCount = 0;
+      let prevPos = { x: ball.position.x, y: ball.position.y };
+      for (let step = 0; step < 900 && !landedSlot; step++) {
+        for (const sp of simSpinners) {
+          sp.__spin.angle += sp.__spin.speed;
+          Body.setAngle(sp, sp.__spin.angle);
+          Body.setAngularVelocity(sp, sp.__spin.speed);
+        }
+        Engine.update(e2, 8.333);
+        Engine.update(e2, 8.333);
+        const cp = { x: ball.position.x, y: ball.position.y };
+        trail.push(cp);
+        if (cp.y > H + 30 || cp.y < -60 || cp.x < -30 || cp.x > CANVAS_W + 30) break;
+        // Deterministic stuck-out: if the ball hasn't moved for a long time, treat as lost.
+        // This keeps sim trails bounded and matches the live game's "stuck = 外" semantics,
+        // but without live's non-deterministic random nudge (which caused sim/live divergence).
+        if (Math.hypot(cp.x - prevPos.x, cp.y - prevPos.y) < 0.3) stillCount++;
+        else stillCount = 0;
+        prevPos = cp;
+        if (stillCount > 90) break;
+      }
+      return { trail, landedSlot, events, landedLivePocket };
+    }
+
+    let verifyAnimHandle = null;
+    function runVerifyReplay(entry) {
+      // Cancel any in-flight animation from a previous replay click.
+      if (verifyAnimHandle) { cancelAnimationFrame(verifyAnimHandle); verifyAnimHandle = null; }
+      const { trail, landedSlot } = simulateBallTrajectory(entry);
+
+      const c = document.getElementById('verify-canvas');
+      const g = c.getContext('2d');
+      const sx = c.width / CANVAS_W;
+      const sy = c.height / H;
+
+      function drawStatic() {
+        g.fillStyle = '#1a0620';
+        g.fillRect(0, 0, c.width, c.height);
+        g.fillStyle = '#ffd57a';
+        for (const peg of pegs) {
+          g.beginPath(); g.arc(peg.position.x * sx, peg.position.y * sy, PEG_R * sx, 0, Math.PI * 2); g.fill();
+        }
+        for (const p of pockets) {
+          const d = p.customData;
+          g.fillStyle = d.color || '#444';
+          g.globalAlpha = d.kind === 'gutter' ? 0.4 : 0.8;
+          g.fillRect(d.x * sx, d.y * sy, d.w * sx, d.h * sy);
+          g.globalAlpha = 1;
+        }
+      }
+
+      const statusEl = document.getElementById('v-status');
+      statusEl.textContent = `Replaying from seed ${entry.seedHex.slice(0, 8)}…`;
+      statusEl.className = 'verify-status';
+
+      // Progressive trail reveal so the user sees the ball "fall" through the pegs.
+      // Target ~1.8s total regardless of trail length.
+      const totalFrames = Math.min(108, trail.length);
+      const step = Math.max(1, Math.ceil(trail.length / totalFrames));
+      let cursor = 0;
+      function frame() {
+        cursor = Math.min(trail.length, cursor + step);
+        drawStatic();
+        // Draw trail up to cursor
+        g.strokeStyle = '#8ae9ff';
+        g.lineWidth = 2;
+        g.beginPath();
+        for (let i = 0; i < cursor; i++) {
+          const p = trail[i];
+          if (i === 0) g.moveTo(p.x * sx, p.y * sy);
+          else g.lineTo(p.x * sx, p.y * sy);
+        }
+        g.stroke();
+        // Current ball head
+        if (cursor > 0) {
+          const head = trail[cursor - 1];
+          g.fillStyle = '#fff';
+          g.beginPath(); g.arc(head.x * sx, head.y * sy, 5, 0, Math.PI * 2); g.fill();
+        }
+        if (cursor < trail.length) {
+          verifyAnimHandle = requestAnimationFrame(frame);
+        } else {
+          verifyAnimHandle = null;
+          finalize();
+        }
+      }
+
+      function finalize() {
+        const origKind = entry.slot ? entry.slot.kind : 'lost';
+        const replayKind = landedSlot ? landedSlot.kind : 'lost';
+        const lossSet = new Set(['lost', 'gutter']);
+        const origValue = entry.slot ? entry.slot.value : 0;
+        const replayValue = landedSlot ? landedSlot.value : 0;
+        const matches = (lossSet.has(origKind) && lossSet.has(replayKind)) ||
+                        (origKind === replayKind && origValue === replayValue);
+        const replayLabel = landedSlot ? (landedSlot.kanji || landedSlot.label || '外') : '外';
+        const origLabel = entry.slot ? entry.slot.label : '外';
+        if (matches) {
+          statusEl.textContent = `✓ Verified: seed ${entry.seedHex.slice(0, 8)}… deterministically lands in ${replayLabel}. Session tx on chain confirms.`;
+          statusEl.className = 'verify-status ok';
+        } else {
+          statusEl.textContent = `⚠ Replay landed in ${replayLabel}, stored outcome was ${origLabel}. This should not happen — seed is deterministic.`;
+          statusEl.className = 'verify-status warn';
+        }
+      }
+
+      frame();
+    }
+
+    // ---------- Button wiring ----------
+    btnGuest.addEventListener('click', playAsGuest);
+    btnPhantom.addEventListener('click', connectPhantom);
+    btnAirdrop.addEventListener('click', airdrop);
+    btnDisconnect.addEventListener('click', disconnect);
+    document.getElementById('v-close').addEventListener('click', closeVerifyModal);
+    document.getElementById('verify-modal').addEventListener('click', (ev) => {
+      if (ev.target.id === 'verify-modal') closeVerifyModal();
+    });
+    document.getElementById('v-replay').addEventListener('click', () => {
+      if (currentVerifyEntry) runVerifyReplay(currentVerifyEntry);
+    });
+    addrEl.addEventListener('click', () => {
+      if (publicKey) navigator.clipboard?.writeText(publicKey.toBase58()).catch(() => {});
+    });
+
+    // Restore burner on reload if present
+    const existing = loadBurner();
+    if (existing) {
+      burnerKeypair = existing;
+      publicKey = existing.publicKey;
+      provider = 'burner';
+      updateWalletUI();
+      refreshBalance();
+    }
+
+    // Dev-only sim: one fake "session" → every T-press derives the next ball seed
+    // from that session + increments ballIndex. Same code path as chain, no tx.
+    const b58encode = (bytes) => {
+      const alpha = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+      let x = 0n;
+      for (const b of bytes) x = x * 256n + BigInt(b);
+      let out = '';
+      while (x > 0n) { out = alpha[Number(x % 58n)] + out; x = x / 58n; }
+      for (const b of bytes) { if (b === 0) out = '1' + out; else break; }
+      return out;
+    };
+    async function ensureSimSession() {
+      if (sessionSig) return;
+      const fakeSig = new Uint8Array(64); crypto.getRandomValues(fakeSig);
+      const fakeBh = new Uint8Array(32); crypto.getRandomValues(fakeBh);
+      sessionSig = b58encode(fakeSig);
+      sessionBlockhash = b58encode(fakeBh);
+      sessionSeed = await deriveSeed(sessionSig, sessionBlockhash);
+      ballIndex = 0;
+      updateSessionUI();
+    }
+    async function simulatePlay(power = 0.85) {
+      await ensureSimSession();
+      const thisIdx = ballIndex++;
+      const seed = await deriveBallSeed(sessionSeed, thisIdx);
+      const params = deriveLaunchParams(seed, power);
+      const entry = {
+        id: ++playCounter, signature: sessionSig, blockhash: sessionBlockhash,
+        ballIndex: thisIdx, seedHex: seedToHex(seed),
+        power, vx: params.vx, vyJitter: params.vyJitter,
+        spinnerStates: captureSpinnerStates(),
+        ts: Date.now(), sim: true,
+      };
+      const simResult = simulateBallTrajectory(entry);
+      const authSlot = simResult.landedSlot
+        ? { kind: simResult.landedSlot.kind, value: simResult.landedSlot.value, label: simResult.landedSlot.kanji || simResult.landedSlot.label || '外', x: simResult.landedSlot.x, y: simResult.landedSlot.y, w: simResult.landedSlot.w, h: simResult.landedSlot.h }
+        : { kind: 'lost', value: 0, label: '外' };
+      entry.slot = authSlot;
+      entry.authSlot = authSlot;
+      entry.pending = false;
+      plays.set(entry.id, entry);
+      renderFeed();
+      updateSessionUI();
+      state.power = power;
+      const ball = launchBall({
+        vx: params.vx, vyJitter: params.vyJitter,
+        simTrail: simResult.trail, simEvents: simResult.events, landedLivePocket: simResult.landedLivePocket, authSlot,
+      });
+      state.power = 0;
+      if (ball) ball.customData.playId = entry.id;
+      setStatus('SIM ball #' + thisIdx + ' · seed ' + seedToHex(seed).slice(0, 10) + '… → ' + authSlot.label, 'ok');
+    }
+
+    // Auto-enable sim mode via URL param (?sim=1)
+    if (new URLSearchParams(location.search).has('sim')) {
+      window.addEventListener('keyup', (e) => {
+        if (e.code === 'KeyT' && !e.repeat) simulatePlay(0.7 + Math.random() * 0.3);
+      });
+    }
+
+    return {
+      onRelease,
+      onPocketResult,
+      getPlay,
+      get connected() { return !!publicKey; },
+      __simulatePlay: simulatePlay,
+    };
+  })();
+  // Expose worldWalls for the verify replay — collect them when they're built.
+  // (pegs + pockets arrays already exist module-scoped.)
+  // worldWalls is populated where the walls are constructed; see below.
+
+  // ---------- INPUT ----------
+  let spaceDown = false;
+  function startCharge() {
+    if (state.gameOver) return;
+    if (state.ballsRemaining <= 0) return;
+    if (state.charging) return;
+    state.charging = true;
+    state.power = 0;
+    ui.knob.classList.add('charging');
+    // initialize audio on first user gesture
+    audio();
+    initMusic();
+  }
+  function releaseCharge() {
+    if (!state.charging) return;
+    state.charging = false;
+    ui.knob.classList.remove('charging');
+    const capturedPower = state.power;
+    state.power = 0;
+    ui.power.style.width = '0%';
+    // Route through chain — it'll either submit an onchain tx + launch deterministically
+    // (once confirmed) or fall back to local RNG if chain is unavailable.
+    chain.onRelease(capturedPower);
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && !spaceDown) {
+      spaceDown = true;
+      e.preventDefault();
+      startCharge();
+    } else if (e.code === 'KeyR') {
+      resetGame();
+    } else if (e.code === 'KeyM') {
+      toggleSound();
+    }
+  });
+  window.addEventListener('keyup', (e) => {
+    if (e.code === 'Space') {
+      spaceDown = false;
+      e.preventDefault();
+      releaseCharge();
+    }
+  });
+
+  ui.knob.addEventListener('mousedown', (e) => { e.preventDefault(); startCharge(); });
+  ui.knob.addEventListener('touchstart', (e) => { e.preventDefault(); startCharge(); }, { passive: false });
+  window.addEventListener('mouseup', releaseCharge);
+  window.addEventListener('touchend', releaseCharge);
+
+  document.getElementById('btn-restart').addEventListener('click', resetGame);
+  document.getElementById('btn-restart-over').addEventListener('click', resetGame);
+  document.getElementById('btn-sound').addEventListener('click', toggleSound);
+
+  function toggleSound() {
+    state.soundOn = !state.soundOn;
+    ui.sound.textContent = state.soundOn ? '♪ SOUND: ON' : '♪ SOUND: OFF';
+    setMusicMuted(!state.soundOn);
+  }
+
+  function resetGame() {
+    // Remove all balls
+    balls.forEach(b => Composite.remove(world, b));
+    balls.length = 0;
+    particles.length = 0;
+    state.score = 0;
+    state.ballsRemaining = 100;
+    state.ballsUsed = 0;
+    state.jackpots = 0;
+    state.wins = 0;
+    state.combo = 0;
+    state.lastWinTime = 0;
+    state.gameOver = false;
+    state.charging = false;
+    state.power = 0;
+    if (state.fever > 0) endFever();
+    state.shake = 0;
+    state.scorePop = 0;
+    ui.gameOver.classList.remove('show');
+    ui.score.textContent = '0';
+    ui.score.style.transform = '';
+    ui.balls.textContent = '100';
+    ui.used.textContent = '0';
+    ui.jackpots.textContent = '0';
+    ui.wins.textContent = '0';
+    ui.combo.textContent = '0';
+    ui.power.style.width = '0%';
+  }
+
+  // ---------- RENDERING ----------
+  // Precompute gradients and cached patterns
+  let bgGradient;
+  function buildGradients() {
+    bgGradient = ctx.createLinearGradient(0, 0, 0, H);
+    bgGradient.addColorStop(0, '#1a0620');
+    bgGradient.addColorStop(0.35, '#3a0e2a');
+    bgGradient.addColorStop(0.65, '#4a1428');
+    bgGradient.addColorStop(1, '#1a0614');
+  }
+  buildGradients();
+
+  // Playfield decoration: Mt. Fuji and torii behind the pegs
+  function drawPlayfieldBackground() {
+    // Night sky gradient
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, CANVAS_W, H);
+
+    // Moon
+    ctx.save();
+    ctx.globalAlpha = 0.95;
+    const moonGrad = ctx.createRadialGradient(90, 90, 0, 90, 90, 30);
+    moonGrad.addColorStop(0, '#fff9e0');
+    moonGrad.addColorStop(0.6, '#ffe4a0');
+    moonGrad.addColorStop(1, 'rgba(255, 228, 160, 0)');
+    ctx.fillStyle = moonGrad;
+    ctx.fillRect(50, 50, 90, 90);
+    ctx.beginPath();
+    ctx.arc(90, 90, 18, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff4d6';
+    ctx.fill();
+    ctx.restore();
+
+    // Distant stars (static)
+    ctx.save();
+    ctx.globalAlpha = 0.7;
+    for (let i = 0; i < 40; i++) {
+      const sx = (i * 137.5) % CANVAS_W;
+      const sy = ((i * 83.3) % 200);
+      const size = (i % 3 === 0) ? 1.5 : 0.8;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(sx, sy, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // Mt. Fuji silhouette mid-field — symmetric cone, slightly concave slopes.
+    // (Real Fuji is a near-pyramid; wide ridges read as just "mountains".)
+    ctx.save();
+    ctx.globalAlpha = 0.38;
+    ctx.fillStyle = '#1a0420';
+    const fBaseY = 335;
+    const fPeakX = CANVAS_W / 2;
+    const fPeakY = 165;
+    const fHalf = 115;          // half-base width → base = 230 < CANVAS_W(535)
+    ctx.beginPath();
+    ctx.moveTo(fPeakX - fHalf, fBaseY);
+    // left slope: gentle concave curve into peak
+    ctx.quadraticCurveTo(fPeakX - fHalf * 0.55, fBaseY - 70, fPeakX - 8, fPeakY + 6);
+    // tiny rounded summit
+    ctx.quadraticCurveTo(fPeakX, fPeakY - 4, fPeakX + 8, fPeakY + 6);
+    // right slope: mirror
+    ctx.quadraticCurveTo(fPeakX + fHalf * 0.55, fBaseY - 70, fPeakX + fHalf, fBaseY);
+    ctx.closePath();
+    ctx.fill();
+
+    // Snow cap — jagged bottom edge ("yamahada") near the summit.
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = '#fff4d6';
+    ctx.beginPath();
+    ctx.moveTo(fPeakX - 28, fPeakY + 35);
+    ctx.lineTo(fPeakX - 22, fPeakY + 20);
+    ctx.lineTo(fPeakX - 14, fPeakY + 30);
+    ctx.lineTo(fPeakX - 8, fPeakY + 10);
+    ctx.quadraticCurveTo(fPeakX, fPeakY - 3, fPeakX + 8, fPeakY + 10);
+    ctx.lineTo(fPeakX + 14, fPeakY + 28);
+    ctx.lineTo(fPeakX + 22, fPeakY + 18);
+    ctx.lineTo(fPeakX + 28, fPeakY + 35);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // Torii gate silhouette far behind
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = '#e60012';
+    const tX = 340, tY = 250, tW = 90, tH = 80;
+    // two uprights
+    ctx.fillRect(tX - tW/2, tY, 7, tH);
+    ctx.fillRect(tX + tW/2 - 7, tY, 7, tH);
+    // top beam (kasagi)
+    ctx.beginPath();
+    ctx.moveTo(tX - tW/2 - 12, tY);
+    ctx.lineTo(tX + tW/2 + 12, tY);
+    ctx.lineTo(tX + tW/2 + 18, tY - 8);
+    ctx.lineTo(tX - tW/2 - 18, tY - 8);
+    ctx.closePath();
+    ctx.fill();
+    // second beam (shimaki)
+    ctx.fillRect(tX - tW/2 - 4, tY + 10, tW + 8, 5);
+    ctx.restore();
+
+    // Subtle wood grain strokes on the playfield panel
+    ctx.save();
+    ctx.strokeStyle = 'rgba(60, 20, 30, 0.25)';
+    ctx.lineWidth = 0.5;
+    for (let y = 30; y < H; y += 14) {
+      ctx.beginPath();
+      ctx.moveTo(0, y + Math.sin(y * 0.1) * 2);
+      ctx.bezierCurveTo(CANVAS_W * 0.3, y + 2, CANVAS_W * 0.6, y - 2, CANVAS_W, y + Math.sin(y * 0.1 + 2) * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Cherry blossom branches in background (drawn behind pegs)
+  // Precompute branch blossoms ONCE (positions stay stable across frames — was previously
+  // re-randomized per frame, causing the flowers to jitter in a haywire line).
+  const branchSpec = [
+    { x1: 0, y1: 25, x2: 110, y2: 80, color: '#3a1a1e', thickness: 5 },
+    { x1: CANVAS_W, y1: 480, x2: CANVAS_W - 150, y2: 560, color: '#3a1a1e', thickness: 4 },
+  ];
+  const branchBlossoms = (() => {
+    const out = [];
+    branchSpec.forEach((b, bi) => {
+      b._cx = (b.x1 + b.x2) / 2;
+      b._cy = (b.y1 + b.y2) / 2 - 20;
+      let i = 0;
+      for (let t = 0.15; t <= 0.95; t += 0.14) {
+        const bx = (1 - t) * (1 - t) * b.x1 + 2 * (1 - t) * t * b._cx + t * t * b.x2;
+        const by = (1 - t) * (1 - t) * b.y1 + 2 * (1 - t) * t * b._cy + t * t * b.y2;
+        // Deterministic "random" so positions are stable but varied
+        const seed = i * 137.5 + bi * 41.3;
+        const ox = Math.sin(seed) * 5;
+        const oy = Math.cos(seed * 1.7) * 4;
+        out.push({
+          x: bx + ox,
+          y: by + oy,
+          r: 6.5 + Math.abs(Math.sin(seed * 2.1)) * 2,
+          rot: Math.sin(seed * 3.3) * 0.6,
+          swayPhase: seed,
+          swayAmp: 0.04 + Math.abs(Math.sin(seed * 5)) * 0.04,
+          swayFreq: 0.6 + Math.abs(Math.cos(seed * 7)) * 0.5,
+        });
+        i++;
+      }
+    });
+    return out;
+  })();
+
+  function drawSakuraBranches() {
+    ctx.save();
+    // Branch curves first
+    for (const b of branchSpec) {
+      ctx.globalAlpha = 0.75;
+      ctx.strokeStyle = b.color;
+      ctx.lineWidth = b.thickness;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(b.x1, b.y1);
+      ctx.quadraticCurveTo(b._cx, b._cy, b.x2, b.y2);
+      ctx.stroke();
+    }
+    // Stable blossoms on top, with a gentle per-flower sway (sprite-blit, no bezier per frame)
+    const tSec = performance.now() * 0.001;
+    ctx.globalAlpha = 0.95;
+    for (const blm of branchBlossoms) {
+      const sway = Math.sin(tSec * blm.swayFreq + blm.swayPhase) * blm.swayAmp;
+      ctx.save();
+      ctx.translate(blm.x, blm.y);
+      ctx.rotate(blm.rot + sway);
+      drawBlossomSprite(ctx, blm.r);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  function drawPegs() {
+    // Uses pre-rendered sprites; per-frame cost is drawImage blits only.
+    const spriteW = pegSprite.w;
+    const spriteHalf = spriteW / 2;
+    const glowHalf = pegGlowSprite.w / 2;
+    for (let i = 0; i < pegs.length; i++) {
+      const peg = pegs[i];
+      const flash = peg.customData.flash || 0;
+      const x = peg.position.x;
+      const y = peg.position.y;
+
+      if (flash > 0) {
+        ctx.globalAlpha = flash / 12 * 0.6;
+        ctx.drawImage(pegGlowSprite.canvas, x - glowHalf, y - glowHalf, pegGlowSprite.w, pegGlowSprite.w);
+        ctx.globalAlpha = 1;
+        ctx.drawImage(pegFlashSprite.canvas, x - spriteHalf, y - spriteHalf, spriteW, spriteW);
+        peg.customData.flash = flash - 1;
+      } else {
+        ctx.drawImage(pegSprite.canvas, x - spriteHalf, y - spriteHalf, spriteW, spriteW);
+      }
+    }
+  }
+
+  function drawSpinners() {
+    // Lazy-init sprite cache keyed by blade length (rebuilt only on fever toggle).
+    for (let si = 0; si < spinners.length; si++) {
+      const sp = spinners[si];
+      const d = sp.customData;
+      const flash = d.hitFlash || 0;
+      const base = getSpinnerBaseSprite(d.length, state.fever > 0);
+      const blade = getSpinnerBladeSprite(d.length);
+      const baseHalf = base.w / 2;
+      const bladeHalf = blade.w / 2;
+
+      // Base socket + ring (static, sprite-blit)
+      ctx.drawImage(base.canvas, d.cx - baseHalf, d.cy - baseHalf, base.w, base.w);
+
+      // Rotating blades — single sprite, one drawImage
+      ctx.save();
+      ctx.translate(d.cx, d.cy);
+      ctx.rotate(sp.angle);
+      ctx.drawImage(blade.canvas, -bladeHalf, -bladeHalf, blade.w, blade.w);
+      ctx.restore();
+
+      if (flash > 0) {
+        // Simple additive glow — no gradient alloc, no shadowBlur
+        ctx.save();
+        ctx.globalAlpha = flash / 14 * 0.55;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = '#fff4a0';
+        ctx.beginPath();
+        ctx.arc(d.cx, d.cy, d.length * 0.55, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        d.hitFlash = flash - 1;
+      }
+    }
+  }
+  // Spinner sprite caches (indexed by length; base also varies by fever state)
+  const _spinBaseCache = new Map();
+  const _spinBladeCache = new Map();
+  function getSpinnerBaseSprite(length, fever) {
+    const key = length + '_' + (fever ? 'f' : 'n');
+    let s = _spinBaseCache.get(key);
+    if (s) return s;
+    const size = Math.ceil(length * 0.78);
+    s = makeSprite(size, size, g => {
+      const cx = size / 2, cy = size / 2;
+      const socket = g.createRadialGradient(cx - 3, cy - 3, 2, cx, cy, length * 0.38);
+      socket.addColorStop(0, '#3a2410');
+      socket.addColorStop(1, '#14080a');
+      g.fillStyle = socket;
+      g.beginPath(); g.arc(cx, cy, length * 0.36, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = fever ? '#ff6080' : '#d4a845';
+      g.lineWidth = 2;
+      g.beginPath(); g.arc(cx, cy, length * 0.34, 0, Math.PI * 2); g.stroke();
+    });
+    _spinBaseCache.set(key, s);
+    return s;
+  }
+  function getSpinnerBladeSprite(length) {
+    let s = _spinBladeCache.get(length);
+    if (s) return s;
+    const size = length + 6;
+    s = makeSprite(size, size, g => {
+      g.translate(size / 2, size / 2);
+      // main blade
+      const bladeGrad = g.createLinearGradient(0, -4, 0, 4);
+      bladeGrad.addColorStop(0, '#ff8090');
+      bladeGrad.addColorStop(0.5, '#e60012');
+      bladeGrad.addColorStop(1, '#8b0010');
+      g.fillStyle = bladeGrad;
+      g.fillRect(-length / 2, -4, length, 8);
+      // tips
+      g.fillStyle = '#ffe082';
+      g.fillRect(-length / 2, -4, 4, 8);
+      g.fillRect(length / 2 - 4, -4, 4, 8);
+      // cross
+      g.fillStyle = '#8b0010';
+      g.fillRect(-3, -length * 0.22, 6, length * 0.44);
+      // hub
+      const hubGrad = g.createRadialGradient(-2, -2, 1, 0, 0, 9);
+      hubGrad.addColorStop(0, '#fff7d0');
+      hubGrad.addColorStop(0.5, '#ffc045');
+      hubGrad.addColorStop(1, '#5a3018');
+      g.fillStyle = hubGrad;
+      g.beginPath(); g.arc(0, 0, 8, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#3a2410';
+      g.lineWidth = 1; g.stroke();
+      g.fillStyle = '#3a1214';
+      g.beginPath(); g.arc(0, 0, 2, 0, Math.PI * 2); g.fill();
+    });
+    _spinBladeCache.set(length, s);
+    return s;
+  }
+
+  function drawRail() {
+    // Curved rail drawn as a smooth path on top of the segments (no shadowBlur — expensive)
+    ctx.save();
+    ctx.strokeStyle = '#d4a845';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    railPoints.forEach((p, i) => {
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    });
+    ctx.stroke();
+    // Inner highlight
+    ctx.strokeStyle = '#fff8c8';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    railPoints.forEach((p, i) => {
+      if (i === 0) ctx.moveTo(p.x, p.y - 1.5);
+      else ctx.lineTo(p.x, p.y - 1.5);
+    });
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawDivider() {
+    // Launcher channel divider — vertical gold line
+    ctx.save();
+    const gx = DIV_X;
+    const gy0 = DIV_TOP_OPEN;
+    const gy1 = H;
+    const grad = ctx.createLinearGradient(gx - 3, 0, gx + 3, 0);
+    grad.addColorStop(0, '#8b5e20');
+    grad.addColorStop(0.5, '#ffe082');
+    grad.addColorStop(1, '#8b5e20');
+    ctx.fillStyle = grad;
+    ctx.fillRect(gx - 3, gy0, 6, gy1 - gy0);
+    ctx.restore();
+  }
+
+  function drawLauncherChannel() {
+    // Launcher tube decoration
+    ctx.save();
+    // Channel background (subtle wood)
+    const chGrad = ctx.createLinearGradient(W, 0, CANVAS_W, 0);
+    chGrad.addColorStop(0, 'rgba(25, 8, 12, 0.5)');
+    chGrad.addColorStop(1, 'rgba(40, 14, 18, 0.5)');
+    ctx.fillStyle = chGrad;
+    ctx.fillRect(W, DIV_TOP_OPEN, CH, H - DIV_TOP_OPEN);
+
+    // Spring at the bottom (launcher mechanism visual)
+    const sx = launcher.x;
+    const sy = H - 8;
+    ctx.strokeStyle = '#8b5e20';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    const coils = 6;
+    const coilSpace = 6;
+    const compression = state.charging ? state.power * 0.6 : 0;
+    for (let i = 0; i < coils; i++) {
+      const y = sy - i * coilSpace * (1 - compression);
+      ctx.moveTo(sx - 8, y);
+      ctx.lineTo(sx + 8, y - coilSpace / 2);
+    }
+    ctx.stroke();
+
+    // Channel edge guide lines
+    ctx.strokeStyle = 'rgba(212, 168, 69, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(CANVAS_W - 2, DIV_TOP_OPEN);
+    ctx.lineTo(CANVAS_W - 2, H);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawBalls() {
+    const fever = state.fever > 0;
+    const spriteSize = BALL_R_DRAW * 2;
+    const half = BALL_R_DRAW;
+    const ballImg = fever ? ballSpriteFever.canvas : ballSpriteNormal.canvas;
+    const tNow = performance.now();
+    for (let bi = 0; bi < balls.length; bi++) {
+      const b = balls[bi];
+      const x = b.position.x;
+      const y = b.position.y;
+      const r = 7;
+
+      const trail = b.customData.trail;
+      trail.push({ x, y });
+      if (trail.length > 8) trail.shift();
+
+      const speed = Math.hypot(b.velocity.x, b.velocity.y);
+
+      // Trail (no per-point createRadialGradient; just cheap arc fills)
+      if (speed > 3 && trail.length > 2) {
+        for (let i = 0; i < trail.length - 1; i++) {
+          const t = i / trail.length;
+          const tp = trail[i];
+          ctx.globalAlpha = t * (fever ? 0.5 : 0.28);
+          if (fever) {
+            ctx.fillStyle = `hsl(${((i * 40 + tNow * 0.3) % 360) | 0}, 100%, 70%)`;
+          } else {
+            ctx.fillStyle = '#fff';
+          }
+          ctx.beginPath();
+          ctx.arc(tp.x, tp.y, r * (0.35 + t * 0.55), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      // Ball — single sprite blit (was: 1 radial gradient + shadow ellipse + shine + optional glow per ball per frame)
+      ctx.drawImage(ballImg, x - half, y - half, spriteSize, spriteSize);
+
+      // Fever glow — additive blend, no gradient creation
+      if (fever) {
+        ctx.save();
+        ctx.globalAlpha = 0.4;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = '#ffb860';
+        ctx.beginPath();
+        ctx.arc(x, y, r * 1.9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+  }
+
+  function drawPockets() {
+    pockets.forEach(p => {
+      const d = p.customData;
+      const flash = d.flash || 0;
+
+      // Pocket back (inset)
+      ctx.save();
+
+      if (d.kind === 'gutter') {
+        // Dark gutter
+        ctx.fillStyle = '#0a0408';
+        ctx.fillRect(d.x, d.y, d.w, d.h);
+        ctx.strokeStyle = '#2a1a20';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(d.x, d.y, d.w, d.h);
+        // Label 外
+        ctx.fillStyle = '#2a1a20';
+        ctx.font = 'bold 22px "Noto Serif JP", serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('外', d.x + d.w/2, d.y + d.h/2);
+      } else {
+        // Colored pocket with glow when hit
+        const cx = d.x + d.w/2;
+        const cy = d.y + d.h/2;
+
+        // Background
+        const bgGrad = ctx.createLinearGradient(0, d.y, 0, d.y + d.h);
+        if (d.kind === 'jackpot') {
+          bgGrad.addColorStop(0, '#8b0010');
+          bgGrad.addColorStop(0.5, '#e60012');
+          bgGrad.addColorStop(1, '#8b0010');
+        } else if (d.kind === 'fuku') {
+          bgGrad.addColorStop(0, '#8b5e20');
+          bgGrad.addColorStop(0.5, '#d4a845');
+          bgGrad.addColorStop(1, '#8b5e20');
+        } else if (d.kind === 'sakura') {
+          bgGrad.addColorStop(0, '#a0607a');
+          bgGrad.addColorStop(0.5, '#ffb7c5');
+          bgGrad.addColorStop(1, '#a0607a');
+        }
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(d.x, d.y, d.w, d.h);
+
+        // Gold border
+        ctx.strokeStyle = '#ffe082';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(d.x + 1, d.y + 1, d.w - 2, d.h - 2);
+
+        // Inset shadow top
+        const inset = ctx.createLinearGradient(0, d.y, 0, d.y + 10);
+        inset.addColorStop(0, 'rgba(0,0,0,0.4)');
+        inset.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = inset;
+        ctx.fillRect(d.x + 2, d.y + 2, d.w - 4, 8);
+
+        // Kanji label
+        ctx.fillStyle = d.kind === 'jackpot' ? '#ffe082' : '#3a1214';
+        ctx.font = d.kind === 'jackpot' ? 'bold 22px "Noto Serif JP", serif' : 'bold 26px "Noto Serif JP", serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        if (d.kind === 'jackpot') {
+          ctx.font = 'bold 13px "Noto Serif JP", serif';
+          ctx.fillText('大当たり', cx, cy - 7);
+          ctx.font = 'bold 8px "Noto Sans JP", sans-serif';
+          ctx.fillText('JACKPOT', cx, cy + 10);
+        } else {
+          ctx.fillText(d.kanji, cx, cy - 4);
+          ctx.font = 'bold 9px sans-serif';
+          ctx.fillText('+' + d.value, cx, cy + 14);
+        }
+
+        // Flash glow when hit
+        if (flash > 0) {
+          ctx.save();
+          ctx.globalAlpha = flash / 30;
+          const fgrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, d.w);
+          fgrad.addColorStop(0, '#fff');
+          fgrad.addColorStop(0.5, d.color);
+          fgrad.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.fillStyle = fgrad;
+          ctx.fillRect(d.x - 30, d.y - 30, d.w + 60, d.h + 60);
+          ctx.restore();
+        }
+      }
+      ctx.restore();
+
+      if (flash > 0) d.flash = flash - 1;
+    });
+  }
+
+  function drawPocketDivs() {
+    // Pocket divider walls (gold pillars between pockets)
+    [65, 125, 185, 315, 375, 435].forEach((x, i) => {
+      const h = (i === 0 || i === 5) ? 70 : (i === 1 || i === 4 ? 65 : 60);
+      const y = POCKET_Y - h + 5;
+      ctx.save();
+      const grad = ctx.createLinearGradient(x - 2, 0, x + 2, 0);
+      grad.addColorStop(0, '#5a3018');
+      grad.addColorStop(0.5, '#d4a845');
+      grad.addColorStop(1, '#5a3018');
+      ctx.fillStyle = grad;
+      ctx.fillRect(x - 2, y, 4, h);
+      // Top cap
+      ctx.fillStyle = '#ffe082';
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#3a2410';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  function drawParticles() {
+    // No save/restore per particle — hoist globalAlpha writes only, batch fills.
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += p.gravity;
+      p.life--;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      const alpha = p.life / p.maxLife;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (alpha * 0.5 + 0.5), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Floating sakura petals inside the playfield. Each petal has its own sway
+  // phase/speed so they don't all drift in unison.
+  const playfieldPetals = [];
+  for (let i = 0; i < 12; i++) {
+    playfieldPetals.push({
+      x: Math.random() * CANVAS_W,
+      y: Math.random() * H,
+      vy: 0.25 + Math.random() * 0.5,
+      r: 4 + Math.random() * 4,
+      rot: Math.random() * Math.PI * 2,
+      vrot: (Math.random() - 0.5) * 0.05,
+      alpha: 0.35 + Math.random() * 0.4,
+      swayAmp: 0.6 + Math.random() * 1.2,
+      swayFreq: 0.015 + Math.random() * 0.02,
+      swayPhase: Math.random() * Math.PI * 2,
+    });
+  }
+  // Draw a 5-petal sakura blossom centered at origin. Caller handles translate/rotate/alpha.
+  function drawSakuraBlossom(c, r, fill1, fill2) {
+    const petalL = r;
+    const petalW = r * 0.62;
+    const offset = r * 0.35;
+    const grad = c.createRadialGradient(0, 0, 0, 0, 0, r * 1.1);
+    grad.addColorStop(0, fill1);
+    grad.addColorStop(0.7, fill2);
+    grad.addColorStop(1, fill2);
+    c.fillStyle = grad;
+    for (let i = 0; i < 5; i++) {
+      c.save();
+      c.rotate((i / 5) * Math.PI * 2);
+      c.beginPath();
+      // Teardrop/heart-shaped petal with a notch at the tip.
+      c.moveTo(0, -offset);
+      c.bezierCurveTo(petalW * 0.9, -offset - petalL * 0.4, petalW * 0.5, -offset - petalL * 0.95, 0.15, -offset - petalL);
+      c.bezierCurveTo(-0.25, -offset - petalL * 0.85, 0, -offset - petalL * 0.7, 0, -offset - petalL * 0.55);
+      c.bezierCurveTo(0, -offset - petalL * 0.7, 0.25, -offset - petalL * 0.85, -0.15, -offset - petalL);
+      c.bezierCurveTo(-petalW * 0.5, -offset - petalL * 0.95, -petalW * 0.9, -offset - petalL * 0.4, 0, -offset);
+      c.closePath();
+      c.fill();
+      c.restore();
+    }
+    // center dot
+    c.fillStyle = '#ffe082';
+    c.beginPath();
+    c.arc(0, 0, r * 0.18, 0, Math.PI * 2);
+    c.fill();
+  }
+  function drawFloatingPetals() {
+    playfieldPetals.forEach(p => {
+      p.swayPhase += p.swayFreq;
+      p.x += Math.cos(p.swayPhase) * p.swayAmp * 0.12;
+      p.y += p.vy;
+      p.rot += p.vrot;
+      if (p.y > H + 20) { p.y = -20; p.x = Math.random() * CANVAS_W; p.swayPhase = Math.random() * Math.PI * 2; }
+      if (p.x < -20) p.x = CANVAS_W + 20;
+      if (p.x > CANVAS_W + 20) p.x = -20;
+
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      drawBlossomSprite(ctx, p.r);
+      ctx.restore();
+    });
+  }
+
+  // ---------- SPRITE CACHE ----------
+  // Pre-render expensive shapes (pegs, blossoms, ball) once to offscreen canvases.
+  // Draw calls in the hot loop become cheap drawImage blits instead of per-frame
+  // gradient creation + bezier drawing. This is the main performance win.
+  const SPRITE_SCALE = 2; // render at 2x for crisp sub-pixel drawImage
+
+  function makeSprite(w, h, draw) {
+    const c = document.createElement('canvas');
+    c.width = Math.ceil(w * SPRITE_SCALE);
+    c.height = Math.ceil(h * SPRITE_SCALE);
+    const g = c.getContext('2d');
+    g.scale(SPRITE_SCALE, SPRITE_SCALE);
+    draw(g);
+    return { canvas: c, w, h };
+  }
+
+  // Peg sprite — one size serves all; 0.5px variance for "fancy" pegs is imperceptible.
+  const pegSpriteSize = (PEG_R + 2) * 2;
+  const pegSprite = makeSprite(pegSpriteSize, pegSpriteSize, g => {
+    const cx = pegSpriteSize / 2, cy = pegSpriteSize / 2, r = PEG_R;
+    const grad = g.createRadialGradient(cx - r * 0.4, cy - r * 0.4, 0, cx, cy, r + 1);
+    grad.addColorStop(0, '#fffde0');
+    grad.addColorStop(0.4, '#ffe082');
+    grad.addColorStop(1, '#8b5e20');
+    g.fillStyle = grad;
+    g.beginPath(); g.arc(cx, cy, r + 0.5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.6)';
+    g.beginPath(); g.arc(cx - r * 0.35, cy - r * 0.4, r * 0.3, 0, Math.PI * 2); g.fill();
+  });
+  const pegGlowSize = (PEG_R + 2) * 2;
+  const pegGlowSprite = makeSprite(PEG_R * 10, PEG_R * 10, g => {
+    const cx = PEG_R * 5, cy = PEG_R * 5;
+    const gl = g.createRadialGradient(cx, cy, 0, cx, cy, PEG_R * 5);
+    gl.addColorStop(0, '#fff4a0');
+    gl.addColorStop(1, 'rgba(255, 244, 160, 0)');
+    g.fillStyle = gl;
+    g.fillRect(0, 0, PEG_R * 10, PEG_R * 10);
+  });
+  const pegFlashSprite = makeSprite(pegSpriteSize, pegSpriteSize, g => {
+    const cx = pegSpriteSize / 2, cy = pegSpriteSize / 2, r = PEG_R;
+    const grad = g.createRadialGradient(cx - r * 0.4, cy - r * 0.4, 0, cx, cy, r + 1);
+    grad.addColorStop(0, '#fffde0');
+    grad.addColorStop(0.4, '#fff8c8');
+    grad.addColorStop(1, '#c8a060');
+    g.fillStyle = grad;
+    g.beginPath(); g.arc(cx, cy, r + 0.5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.9)';
+    g.beginPath(); g.arc(cx - r * 0.35, cy - r * 0.4, r * 0.3, 0, Math.PI * 2); g.fill();
+  });
+
+  // Blossom sprite — used for falling petals (playfield + page bg) and branch blossoms.
+  const BLOSSOM_BASE_R = 10;
+  const blossomSpriteInstance = makeSprite(BLOSSOM_BASE_R * 3, BLOSSOM_BASE_R * 3, g => {
+    g.translate(BLOSSOM_BASE_R * 1.5, BLOSSOM_BASE_R * 1.5);
+    drawSakuraBlossom(g, BLOSSOM_BASE_R, '#fff4f8', '#ffb7c5');
+  });
+  function drawBlossomSprite(targetCtx, r) {
+    const s = blossomSpriteInstance;
+    const size = r * 3;
+    targetCtx.drawImage(s.canvas, -size / 2, -size / 2, size, size);
+  }
+
+  // Ball sprites — two variants (normal silver + fever gold).
+  const BALL_R_DRAW = 9; // extra padding for highlights/shadow
+  const ballSpriteNormal = makeSprite(BALL_R_DRAW * 2, BALL_R_DRAW * 2, g => {
+    const cx = BALL_R_DRAW, cy = BALL_R_DRAW, r = 7;
+    // shadow
+    g.fillStyle = 'rgba(0,0,0,0.3)';
+    g.beginPath(); g.ellipse(cx + 1, cy + 2, r, r * 0.8, 0, 0, Math.PI * 2); g.fill();
+    // body
+    const grad = g.createRadialGradient(cx - r * 0.35, cy - r * 0.4, 0, cx, cy, r + 2);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.3, '#e8e8e8');
+    grad.addColorStop(0.6, '#a0a0a8');
+    grad.addColorStop(1, '#404048');
+    g.fillStyle = grad;
+    g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+    // highlight
+    g.fillStyle = 'rgba(255,255,255,0.85)';
+    g.beginPath(); g.arc(cx - r * 0.35, cy - r * 0.4, r * 0.3, 0, Math.PI * 2); g.fill();
+  });
+  const ballSpriteFever = makeSprite(BALL_R_DRAW * 2, BALL_R_DRAW * 2, g => {
+    const cx = BALL_R_DRAW, cy = BALL_R_DRAW, r = 7;
+    g.fillStyle = 'rgba(0,0,0,0.3)';
+    g.beginPath(); g.ellipse(cx + 1, cy + 2, r, r * 0.8, 0, 0, Math.PI * 2); g.fill();
+    const grad = g.createRadialGradient(cx - r * 0.35, cy - r * 0.4, 0, cx, cy, r + 2);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.3, '#fff4c0');
+    grad.addColorStop(0.6, '#ffb040');
+    grad.addColorStop(1, '#8b3020');
+    g.fillStyle = grad;
+    g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.9)';
+    g.beginPath(); g.arc(cx - r * 0.35, cy - r * 0.4, r * 0.3, 0, Math.PI * 2); g.fill();
+  });
+
+  // ---------- GAME LOOP ----------
+  let lastTime = performance.now();
+  function loop(now) {
+    const dt = Math.min(now - lastTime, 33);
+    lastTime = now;
+
+    // Update power meter while charging
+    if (state.charging) {
+      state.power = Math.min(1, state.power + dt * 0.0015);
+      ui.power.style.width = (state.power * 100) + '%';
+    }
+
+    // Manually rotate spinners
+    spinners.forEach(sp => {
+      const d = sp.customData;
+      d.angle += d.speed;
+      Body.setAngle(sp, d.angle);
+      // Matter.js can't compute angular impulse on static bodies, so give them velocity instead.
+      Body.setAngularVelocity(sp, d.speed);
+    });
+
+    // Kinematic trail playback — advance one trail sample per frame for each playback ball.
+    // Matches the `900-step, 2x Engine.update per step` sim cadence exactly (2 physics steps
+    // per sample there, 2 physics steps per frame here), so visual speed tracks real physics.
+    for (let i = balls.length - 1; i >= 0; i--) {
+      const b = balls[i];
+      const pb = b.customData.playback;
+      if (!pb || pb.ended) continue;
+
+      if (pb.cursor < pb.trail.length - 1) {
+        pb.cursor++;
+        const cur = pb.trail[pb.cursor];
+        const prev = pb.trail[pb.cursor - 1];
+        Body.setPosition(b, cur);
+        // Write velocity for any renderer that inspects it (trails, motion blur).
+        b.velocity.x = cur.x - prev.x;
+        b.velocity.y = cur.y - prev.y;
+
+        // Fire any recorded events whose frame <= current cursor (usually just one per frame).
+        while (pb.eventIdx < pb.events.length && pb.events[pb.eventIdx].frame <= pb.cursor) {
+          const ev = pb.events[pb.eventIdx++];
+          const t = ev.liveBody;
+          if (ev.type === 'peg' && t) {
+            t.customData.flash = 12;
+            state.score += 1;
+            ui.score.textContent = state.score;
+            soundPeg();
+            spawnParticles(t.position.x, t.position.y, 4, ['#ffe082', '#ffd54f', '#fff8a0'], {
+              speed: 2, life: 18, size: 2, gravity: 0.05
+            });
+          } else if (ev.type === 'spinner' && t) {
+            t.customData.hitFlash = 14;
+            state.score += 10;
+            ui.score.textContent = state.score;
+            soundSpinner();
+            spawnParticles(t.position.x, t.position.y, 8,
+              ['#e60012', '#ffe082', '#fff'], { speed: 3.5, life: 25, size: 3, gravity: 0.1 });
+          }
+        }
+      } else {
+        // Trail exhausted — commit the authoritative outcome.
+        pb.ended = true;
+        if (pb.landedLivePocket) {
+          handlePocketEntry(b, pb.landedLivePocket);
+        } else {
+          // Ball went off the bottom / side in sim (lost). Mirror the cleanup path.
+          if (b.customData.playId) chain.onPocketResult(b.customData.playId, { kind: 'lost', value: 0, label: '外' });
+          Composite.remove(world, b);
+          balls.splice(i, 1);
+        }
+      }
+    }
+
+    // Physics step — two substeps to prevent fast-ball tunneling.
+    // Equal deltas preserve Matter.js's delta/lastDelta correction factor = 1.
+    Engine.update(engine, 8.333);
+    Engine.update(engine, 8.333);
+
+    // Remove out-of-bounds / stuck balls. Playback balls are kinematically driven and
+    // handled by the block above, so skip them here.
+    for (let i = balls.length - 1; i >= 0; i--) {
+      const b = balls[i];
+      if (b.customData.playback) continue;
+      b.customData.age++;
+      const pos = b.position;
+
+      // Out of bounds
+      if (pos.y > H + 30 || pos.y < -60 || pos.x < -30 || pos.x > CANVAS_W + 30) {
+        if (b.customData.playId) chain.onPocketResult(b.customData.playId, { kind: 'lost', value: 0, label: '外' });
+        Composite.remove(world, b);
+        balls.splice(i, 1);
+        continue;
+      }
+
+      // Ball trapped in the launcher channel after launch — remove it.
+      // (The channel is x > W. If a ball has been alive for >90 frames and is still in the
+      //  channel area, it failed to clear the rail and is bouncing uselessly.)
+      if (pos.x > W + 3 && b.customData.age > 90) {
+        if (b.customData.playId) chain.onPocketResult(b.customData.playId, { kind: 'lost', value: 0, label: '外' });
+        Composite.remove(world, b);
+        balls.splice(i, 1);
+        continue;
+      }
+
+      // Stuck detection: ball barely moving for too long
+      const lp = b.customData.lastPos;
+      const d = Math.hypot(pos.x - lp.x, pos.y - lp.y);
+      if (d < 0.3) b.customData.stillTime++;
+      else b.customData.stillTime = 0;
+      b.customData.lastPos = { x: pos.x, y: pos.y };
+
+      if (b.customData.stillTime === 45) {
+        // First nudge: strong kick in a random direction
+        Body.setVelocity(b, { x: (Math.random() - 0.5) * 8, y: -5 - Math.random() * 3 });
+      } else if (b.customData.stillTime > 120) {
+        if (b.customData.playId) chain.onPocketResult(b.customData.playId, { kind: 'lost', value: 0, label: '外' });
+        Composite.remove(world, b);
+        balls.splice(i, 1);
+        continue;
+      }
+
+      // Kill after too long (safety)
+      if (b.customData.age > 1200) {
+        if (b.customData.playId) chain.onPocketResult(b.customData.playId, { kind: 'lost', value: 0, label: '外' });
+        Composite.remove(world, b);
+        balls.splice(i, 1);
+      }
+    }
+
+    // Fever countdown — speeds up spinners slightly while active
+    if (state.fever > 0) {
+      state.fever--;
+      if (state.fever === 0) endFever();
+      else if (state.fever % 18 === 0) {
+        // Ongoing fever sparkles
+        const x = 30 + Math.random() * (W - 60);
+        const y = 80 + Math.random() * (H - 250);
+        spawnParticles(x, y, 6, ['#ffe082', '#ff4060', '#fff', '#ffb7c5'],
+          { speed: 3, life: 28, size: 3, gravity: 0.08, upward: 1.5 });
+      }
+    }
+
+    // Score pop countdown (drives the gold-score CSS pulse)
+    if (state.scorePop > 0) {
+      state.scorePop--;
+      ui.score.style.transform = `scale(${1 + Math.min(0.45, state.scorePop / 30 * 0.45)})`;
+      if (state.scorePop === 0) ui.score.style.transform = '';
+    }
+
+    // Screen shake
+    let shakeX = 0, shakeY = 0;
+    if (state.shake > 0) {
+      state.shake--;
+      const decay = state.shake / 45;
+      const a = state.shakeAmp * decay;
+      shakeX = (Math.random() - 0.5) * a * 2;
+      shakeY = (Math.random() - 0.5) * a * 2;
+      if (state.shake === 0) state.shakeAmp = 0;
+    }
+
+    // Clear canvas
+    ctx.clearRect(0, 0, CANVAS_W, H);
+    ctx.save();
+    ctx.translate(shakeX, shakeY);
+
+    // Draw layers (back to front)
+    drawPlayfieldBackground();
+    drawSakuraBranches();
+    drawFloatingPetals();
+    drawDivider();
+    drawLauncherChannel();
+    drawRail();
+    drawPockets();
+    drawPocketDivs();
+    drawSpinners();
+    drawPegs();
+    drawBalls();
+    drawParticles();
+
+    // Fever overlay tint on the playfield canvas
+    if (state.fever > 0) {
+      const intensity = state.fever > FEVER_DURATION - 60 ? 1 : (state.fever < 90 ? state.fever / 90 : 1);
+      ctx.save();
+      ctx.globalAlpha = 0.12 * intensity;
+      ctx.fillStyle = '#ff2060';
+      ctx.fillRect(0, 0, CANVAS_W, H);
+      ctx.restore();
+    }
+    ctx.restore();
+
+    // Combo display
+    if (state.combo > 1 && performance.now() - state.lastWinTime < 2500) {
+      ctx.save();
+      const alpha = 1 - (performance.now() - state.lastWinTime) / 2500;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#ffe082';
+      ctx.strokeStyle = '#8b5e20';
+      ctx.lineWidth = 3;
+      ctx.font = 'bold 36px "Noto Serif JP", serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const txt = state.combo + '連鎖!';
+      ctx.strokeText(txt, CANVAS_W / 2, 420);
+      ctx.fillText(txt, CANVAS_W / 2, 420);
+      ctx.restore();
+    }
+
+    // Game over check
+    if (state.ballsRemaining <= 0 && balls.length === 0 && !state.gameOver) {
+      state.gameOver = true;
+      ui.finalScore.textContent = state.score;
+      ui.gameOver.classList.add('show');
+    }
+
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // ---------- PAGE-LEVEL BACKGROUND EFFECTS ----------
+  // Stars background
+  const starsCanvas = document.getElementById('stars');
+  const starsCtx = starsCanvas.getContext('2d');
+  const stars = [];
+  function resizeBg() {
+    starsCanvas.width = document.getElementById('fuji-bg').width = document.getElementById('sakura-bg').width = window.innerWidth;
+    starsCanvas.height = document.getElementById('fuji-bg').height = document.getElementById('sakura-bg').height = window.innerHeight;
+    stars.length = 0;
+    for (let i = 0; i < 120; i++) {
+      stars.push({
+        x: Math.random() * starsCanvas.width,
+        y: Math.random() * starsCanvas.height,
+        r: Math.random() * 1.2 + 0.3,
+        tw: Math.random() * Math.PI * 2,
+      });
+    }
+    drawStars();
+    drawFujiBg();
+  }
+  function drawStars() {
+    starsCtx.clearRect(0, 0, starsCanvas.width, starsCanvas.height);
+    stars.forEach(s => {
+      starsCtx.fillStyle = `rgba(255, 255, 255, ${0.4 + Math.sin(s.tw + performance.now() * 0.002) * 0.3})`;
+      starsCtx.beginPath();
+      starsCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      starsCtx.fill();
+    });
+  }
+  function drawFujiBg() {
+    const fb = document.getElementById('fuji-bg');
+    const fc = fb.getContext('2d');
+    fc.clearRect(0, 0, fb.width, fb.height);
+    const baseY = fb.height - 40;
+    // Mountain
+    fc.fillStyle = '#2a0420';
+    fc.beginPath();
+    fc.moveTo(-50, baseY);
+    fc.lineTo(fb.width * 0.3, baseY - 220);
+    fc.lineTo(fb.width * 0.35, baseY - 210);
+    fc.lineTo(fb.width * 0.4, baseY - 240);
+    fc.lineTo(fb.width * 0.48, baseY - 180);
+    fc.lineTo(fb.width * 0.7, baseY - 250);
+    fc.lineTo(fb.width * 0.75, baseY - 235);
+    fc.lineTo(fb.width * 0.85, baseY - 260);
+    fc.lineTo(fb.width + 50, baseY);
+    fc.closePath();
+    fc.fill();
+  }
+  resizeBg();
+  window.addEventListener('resize', resizeBg);
+  setInterval(drawStars, 80);
+
+  // Auto-scale the machine to fit the viewport (accounts for title, padding, controls).
+  function fitMachine() {
+    const machine = document.getElementById('machine');
+    const frame = document.getElementById('machine-frame');
+    if (!machine || !frame) return;
+    // Reset to natural size to measure.
+    machine.style.transform = '';
+    machine.style.width = '';
+    machine.style.height = '';
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    // Estimate space reserved for sidebars at each breakpoint (must match CSS).
+    let sidebarCost;
+    if (vw <= 640) sidebarCost = 8;            // no sidebars
+    else if (vw <= 900) sidebarCost = 320;     // 150px sidebars + gaps + padding
+    else if (vw <= 1100) sidebarCost = 400;    // 190px sidebars
+    else sidebarCost = 500;                    // 240px sidebars
+    const fw = frame.offsetWidth;
+    const fh = frame.offsetHeight;
+    const availH = vh - 24;
+    const availW = Math.min(vw - sidebarCost, 900);
+    const scale = Math.min(availH / fh, availW / fw, 1);
+    if (scale < 1) {
+      machine.style.transformOrigin = 'top center';
+      machine.style.transform = `scale(${scale})`;
+      // transform doesn't affect layout; collapse layout box to the scaled size
+      // so the grid cell matches the visual and the page doesn't scroll.
+      machine.style.width = `${fw * scale}px`;
+      machine.style.height = `${fh * scale}px`;
+    }
+  }
+  fitMachine();
+  window.addEventListener('resize', fitMachine);
+  // Re-fit after fonts settle.
+  setTimeout(fitMachine, 200);
+  setTimeout(fitMachine, 800);
+
+  // Full-page sakura petals — sprite-blit + 30fps throttle + paused when offscreen.
+  const sakuraCanvas = document.getElementById('sakura-bg');
+  const sakuraCtx = sakuraCanvas.getContext('2d');
+  const pagePetals = [];
+  for (let i = 0; i < 18; i++) {
+    pagePetals.push({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      vy: 0.5 + Math.random() * 1.0,
+      r: 5 + Math.random() * 8,
+      rot: Math.random() * Math.PI * 2,
+      vrot: (Math.random() - 0.5) * 0.035,
+      alpha: 0.18 + Math.random() * 0.3,
+      swayAmp: 1.2 + Math.random() * 2.2,
+      swayFreq: 0.008 + Math.random() * 0.02,
+      swayPhase: Math.random() * Math.PI * 2,
+    });
+  }
+  let pagePetalLast = 0;
+  const PAGE_PETAL_INTERVAL = 1000 / 30; // ~30fps is plenty for bg
+  function drawPagePetals(now) {
+    if (document.hidden) { requestAnimationFrame(drawPagePetals); return; }
+    if (now - pagePetalLast < PAGE_PETAL_INTERVAL) { requestAnimationFrame(drawPagePetals); return; }
+    pagePetalLast = now;
+    sakuraCtx.clearRect(0, 0, sakuraCanvas.width, sakuraCanvas.height);
+    for (let i = 0; i < pagePetals.length; i++) {
+      const p = pagePetals[i];
+      p.swayPhase += p.swayFreq;
+      p.x += Math.cos(p.swayPhase) * p.swayAmp * 0.15;
+      p.y += p.vy;
+      p.rot += p.vrot;
+      if (p.y > sakuraCanvas.height + 30) { p.y = -30; p.x = Math.random() * sakuraCanvas.width; p.swayPhase = Math.random() * Math.PI * 2; }
+      if (p.x < -30) p.x = sakuraCanvas.width + 30;
+      if (p.x > sakuraCanvas.width + 30) p.x = -30;
+
+      sakuraCtx.save();
+      sakuraCtx.globalAlpha = p.alpha;
+      sakuraCtx.translate(p.x, p.y);
+      sakuraCtx.rotate(p.rot);
+      drawBlossomSprite(sakuraCtx, p.r);
+      sakuraCtx.restore();
+    }
+    requestAnimationFrame(drawPagePetals);
+  }
+  requestAnimationFrame(drawPagePetals);
+
+})();
+</script>
+</body>
+</html>

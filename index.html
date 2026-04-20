@@ -860,7 +860,12 @@
         <div id="fever-banner"><div class="txt">FEVER</div><div class="sub">大 盤 振 舞 い</div></div>
         <div id="mascot-wrap">
           <div id="mascot">
-            <video id="mascot-video" src="mascot.webm" muted loop playsinline preload="metadata"></video>
+            <!-- Safari doesn't decode VP9 WebM alpha; ship HEVC .mov first for it,
+                 VP9 .webm as the fallback for Chrome/Firefox. Ordered source list -->
+            <video id="mascot-video" muted loop playsinline preload="metadata">
+              <source src="mascot.mov" type="video/quicktime; codecs=hvc1">
+              <source src="mascot.webm" type="video/webm">
+            </video>
           </div>
         </div>
         <div id="game-over">

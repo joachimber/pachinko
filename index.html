@@ -2149,10 +2149,12 @@
       return { w, h };
     }
 
-    // Runs a full deterministic physics simulation in an isolated Matter engine.
-    // Returns { trail: [{x,y}...], landedSlot }. Same code path for live play AND
-    // the verify modal, so outcomes match by construction.
-    function simulateBallTrajectory(entry) {
+    // Cached sim world — built once, reused for every ball. Rebuilding ~130 bodies per
+    // launch caused a visible freeze on plunger release; now the first launch pays the
+    // cost and every subsequent launch only resets the ball + spinners.
+    let simCache = null;
+    function getSimCache() {
+      if (simCache) return simCache;
       const { Engine, Bodies, Body, Composite, Events } = Matter;
       const e2 = Engine.create();
       e2.gravity.y = 0.75;
@@ -2161,8 +2163,6 @@
       e2.constraintIterations = 4;
       const w2 = e2.world;
 
-      // Track mappings so collision events in the sim can reference the LIVE bodies,
-      // which lets the game loop flash the correct peg/spinner during kinematic playback.
       const simToLivePeg = new Map();
       for (const peg of pegs) {
         const sp2 = Bodies.circle(peg.position.x, peg.position.y, peg.circleRadius, { isStatic: true, restitution: peg.restitution, friction: peg.friction, label: peg.label });
@@ -2175,17 +2175,16 @@
       }
       const simSpinners = [];
       const simToLiveSpinner = new Map();
-      const spinnerStates = entry.spinnerStates || captureSpinnerStates();
-      for (let i = 0; i < spinnerStates.length; i++) {
-        const ss = spinnerStates[i];
-        const blade1 = Bodies.rectangle(0, 0, ss.length, 5);
-        const blade2 = Bodies.rectangle(0, 0, 5, ss.length * 0.42);
+      for (let i = 0; i < spinners.length; i++) {
+        const live = spinners[i];
+        const d = live.customData;
+        const blade1 = Bodies.rectangle(0, 0, d.length, 5);
+        const blade2 = Bodies.rectangle(0, 0, 5, d.length * 0.42);
         const sp = Body.create({ parts: [blade1, blade2], isStatic: true, label: 'spinner', restitution: 0.6, friction: 0.02 });
-        Body.setPosition(sp, { x: ss.cx, y: ss.cy });
-        Body.setAngle(sp, ss.angle);
-        sp.__spin = { angle: ss.angle, speed: ss.speed };
+        Body.setPosition(sp, { x: d.cx, y: d.cy });
+        sp.__spin = { angle: 0, speed: d.speed, length: d.length };
         simSpinners.push(sp);
-        if (spinners[i]) simToLiveSpinner.set(sp.id, spinners[i]);
+        simToLiveSpinner.set(sp.id, live);
         Composite.add(w2, sp);
       }
       const pocketMap = new Map();
@@ -2196,49 +2195,83 @@
         simToLivePocket.set(b.id, p);
         Composite.add(w2, b);
       }
-
-      const vy = -(launcher.minPower + (launcher.maxPower - launcher.minPower) * entry.power) + entry.vyJitter;
-      const ball = Bodies.circle(launcher.x, launcher.y, 7, {
+      const simBall = Bodies.circle(launcher.x, launcher.y, 7, {
         restitution: 0.48, friction: 0.001, frictionAir: 0.001, density: 0.018, label: 'ball',
       });
-      Body.setVelocity(ball, { x: entry.vx, y: vy });
-      Composite.add(w2, ball);
+      Composite.add(w2, simBall);
 
-      const trail = [];
-      const events = []; // { frame, type: 'peg'|'spinner'|'pocket', liveBody }
-      const pegHit = new Set();
-      const spinnerHit = new Set();
-      let landedSlot = null;
-      let landedLivePocket = null;
+      // Collision handler references a mutable "current run" object; simulateBallTrajectory
+      // swaps its contents per call. Handler is attached once (Matter doesn't provide off()).
+      const cur = { trail: null, events: null, pegHit: null, spinnerHit: null, landedSlot: null, landedLivePocket: null };
       Events.on(e2, 'collisionStart', (ev) => {
-        const frame = trail.length; // frame index this event will "belong to" in playback
+        if (!cur.trail) return;
+        const frame = cur.trail.length;
         for (const pair of ev.pairs) {
           const a = pair.bodyA.label, b = pair.bodyB.label;
           if ((a === 'ball' && b === 'pocket') || (a === 'pocket' && b === 'ball')) {
             const pocketBody = pair.bodyA.label === 'pocket' ? pair.bodyA : pair.bodyB;
-            landedSlot = pocketMap.get(pocketBody.id);
-            landedLivePocket = simToLivePocket.get(pocketBody.id) || null;
+            cur.landedSlot = pocketMap.get(pocketBody.id);
+            cur.landedLivePocket = simToLivePocket.get(pocketBody.id) || null;
           } else if ((a === 'ball' && b === 'peg') || (a === 'peg' && b === 'ball')) {
             const pegBody = pair.bodyA.label === 'peg' ? pair.bodyA : pair.bodyB;
-            if (!pegHit.has(pegBody.id)) {
-              pegHit.add(pegBody.id);
+            if (!cur.pegHit.has(pegBody.id)) {
+              cur.pegHit.add(pegBody.id);
               const livePeg = simToLivePeg.get(pegBody.id);
-              if (livePeg) events.push({ frame, type: 'peg', liveBody: livePeg });
+              if (livePeg) cur.events.push({ frame, type: 'peg', liveBody: livePeg });
             }
           } else if ((a === 'ball' && b === 'spinner') || (a === 'spinner' && b === 'ball')) {
             const spBody = pair.bodyA.label === 'spinner' ? pair.bodyA : pair.bodyB;
-            if (!spinnerHit.has(spBody.id)) {
-              spinnerHit.add(spBody.id);
+            if (!cur.spinnerHit.has(spBody.id)) {
+              cur.spinnerHit.add(spBody.id);
               const liveSp = simToLiveSpinner.get(spBody.id);
-              if (liveSp) events.push({ frame, type: 'spinner', liveBody: liveSp });
+              if (liveSp) cur.events.push({ frame, type: 'spinner', liveBody: liveSp });
             }
           }
         }
       });
 
+      simCache = { engine: e2, ball: simBall, spinners: simSpinners, cur };
+      return simCache;
+    }
+
+    // Runs a full deterministic physics simulation in a cached Matter engine.
+    // Returns { trail, landedSlot, events, landedLivePocket }. Same code path for live
+    // play AND the verify modal, so outcomes match by construction.
+    function simulateBallTrajectory(entry) {
+      const { Engine, Body } = Matter;
+      const { engine: e2, ball, spinners: simSpinners, cur } = getSimCache();
+
+      // Reset ball state
+      Body.setPosition(ball, { x: launcher.x, y: launcher.y });
+      Body.setAngle(ball, 0);
+      Body.setAngularVelocity(ball, 0);
+      const vy = -(launcher.minPower + (launcher.maxPower - launcher.minPower) * entry.power) + entry.vyJitter;
+      Body.setVelocity(ball, { x: entry.vx, y: vy });
+
+      // Reset spinner angles to the states captured at launch time
+      const spinnerStates = entry.spinnerStates || captureSpinnerStates();
+      for (let i = 0; i < simSpinners.length; i++) {
+        const sp = simSpinners[i];
+        const ss = spinnerStates[i];
+        if (!ss) continue;
+        sp.__spin.angle = ss.angle;
+        sp.__spin.speed = ss.speed;
+        Body.setAngle(sp, ss.angle);
+      }
+
+      // Swap run state
+      const trail = [];
+      const events = [];
+      cur.trail = trail;
+      cur.events = events;
+      cur.pegHit = new Set();
+      cur.spinnerHit = new Set();
+      cur.landedSlot = null;
+      cur.landedLivePocket = null;
+
       let stillCount = 0;
       let prevPos = { x: ball.position.x, y: ball.position.y };
-      for (let step = 0; step < 900 && !landedSlot; step++) {
+      for (let step = 0; step < 900 && !cur.landedSlot; step++) {
         for (const sp of simSpinners) {
           sp.__spin.angle += sp.__spin.speed;
           Body.setAngle(sp, sp.__spin.angle);
@@ -2249,15 +2282,14 @@
         const cp = { x: ball.position.x, y: ball.position.y };
         trail.push(cp);
         if (cp.y > H + 30 || cp.y < -60 || cp.x < -30 || cp.x > CANVAS_W + 30) break;
-        // Deterministic stuck-out: if the ball hasn't moved for a long time, treat as lost.
-        // This keeps sim trails bounded and matches the live game's "stuck = 外" semantics,
-        // but without live's non-deterministic random nudge (which caused sim/live divergence).
         if (Math.hypot(cp.x - prevPos.x, cp.y - prevPos.y) < 0.3) stillCount++;
         else stillCount = 0;
         prevPos = cp;
         if (stillCount > 90) break;
       }
-      return { trail, landedSlot, events, landedLivePocket };
+      const result = { trail, landedSlot: cur.landedSlot, events, landedLivePocket: cur.landedLivePocket };
+      cur.trail = null; // stop appending after return
+      return result;
     }
 
     let verifyAnimHandle = null;
@@ -2544,107 +2576,104 @@
   buildGradients();
 
   // Playfield decoration: Mt. Fuji and torii behind the pegs
-  function drawPlayfieldBackground() {
-    // Night sky gradient
-    ctx.fillStyle = bgGradient;
-    ctx.fillRect(0, 0, CANVAS_W, H);
+  // Static playfield background (moon, stars, Fuji, torii, wood grain) never changes.
+  // Render it once to an offscreen canvas; each frame is now a single drawImage blit
+  // instead of ~50 path ops + gradient allocs.
+  const bgCanvas = document.createElement('canvas');
+  bgCanvas.width = CANVAS_W;
+  bgCanvas.height = H;
+  (() => {
+    const g = bgCanvas.getContext('2d');
+    g.fillStyle = bgGradient;
+    g.fillRect(0, 0, CANVAS_W, H);
 
-    // Moon
-    ctx.save();
-    ctx.globalAlpha = 0.95;
-    const moonGrad = ctx.createRadialGradient(90, 90, 0, 90, 90, 30);
+    g.save();
+    g.globalAlpha = 0.95;
+    const moonGrad = g.createRadialGradient(90, 90, 0, 90, 90, 30);
     moonGrad.addColorStop(0, '#fff9e0');
     moonGrad.addColorStop(0.6, '#ffe4a0');
     moonGrad.addColorStop(1, 'rgba(255, 228, 160, 0)');
-    ctx.fillStyle = moonGrad;
-    ctx.fillRect(50, 50, 90, 90);
-    ctx.beginPath();
-    ctx.arc(90, 90, 18, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff4d6';
-    ctx.fill();
-    ctx.restore();
+    g.fillStyle = moonGrad;
+    g.fillRect(50, 50, 90, 90);
+    g.beginPath();
+    g.arc(90, 90, 18, 0, Math.PI * 2);
+    g.fillStyle = '#fff4d6';
+    g.fill();
+    g.restore();
 
-    // Distant stars (static)
-    ctx.save();
-    ctx.globalAlpha = 0.7;
+    g.save();
+    g.globalAlpha = 0.7;
     for (let i = 0; i < 40; i++) {
       const sx = (i * 137.5) % CANVAS_W;
       const sy = ((i * 83.3) % 200);
       const size = (i % 3 === 0) ? 1.5 : 0.8;
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(sx, sy, size, 0, Math.PI * 2);
-      ctx.fill();
+      g.fillStyle = '#fff';
+      g.beginPath();
+      g.arc(sx, sy, size, 0, Math.PI * 2);
+      g.fill();
     }
-    ctx.restore();
+    g.restore();
 
-    // Mt. Fuji silhouette mid-field — symmetric cone, slightly concave slopes.
-    // (Real Fuji is a near-pyramid; wide ridges read as just "mountains".)
-    ctx.save();
-    ctx.globalAlpha = 0.38;
-    ctx.fillStyle = '#1a0420';
+    g.save();
+    g.globalAlpha = 0.38;
+    g.fillStyle = '#1a0420';
     const fBaseY = 335;
     const fPeakX = CANVAS_W / 2;
     const fPeakY = 165;
-    const fHalf = 115;          // half-base width → base = 230 < CANVAS_W(535)
-    ctx.beginPath();
-    ctx.moveTo(fPeakX - fHalf, fBaseY);
-    // left slope: gentle concave curve into peak
-    ctx.quadraticCurveTo(fPeakX - fHalf * 0.55, fBaseY - 70, fPeakX - 8, fPeakY + 6);
-    // tiny rounded summit
-    ctx.quadraticCurveTo(fPeakX, fPeakY - 4, fPeakX + 8, fPeakY + 6);
-    // right slope: mirror
-    ctx.quadraticCurveTo(fPeakX + fHalf * 0.55, fBaseY - 70, fPeakX + fHalf, fBaseY);
-    ctx.closePath();
-    ctx.fill();
+    const fHalf = 115;
+    g.beginPath();
+    g.moveTo(fPeakX - fHalf, fBaseY);
+    g.quadraticCurveTo(fPeakX - fHalf * 0.55, fBaseY - 70, fPeakX - 8, fPeakY + 6);
+    g.quadraticCurveTo(fPeakX, fPeakY - 4, fPeakX + 8, fPeakY + 6);
+    g.quadraticCurveTo(fPeakX + fHalf * 0.55, fBaseY - 70, fPeakX + fHalf, fBaseY);
+    g.closePath();
+    g.fill();
 
-    // Snow cap — jagged bottom edge ("yamahada") near the summit.
-    ctx.globalAlpha = 0.55;
-    ctx.fillStyle = '#fff4d6';
-    ctx.beginPath();
-    ctx.moveTo(fPeakX - 28, fPeakY + 35);
-    ctx.lineTo(fPeakX - 22, fPeakY + 20);
-    ctx.lineTo(fPeakX - 14, fPeakY + 30);
-    ctx.lineTo(fPeakX - 8, fPeakY + 10);
-    ctx.quadraticCurveTo(fPeakX, fPeakY - 3, fPeakX + 8, fPeakY + 10);
-    ctx.lineTo(fPeakX + 14, fPeakY + 28);
-    ctx.lineTo(fPeakX + 22, fPeakY + 18);
-    ctx.lineTo(fPeakX + 28, fPeakY + 35);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
+    g.globalAlpha = 0.55;
+    g.fillStyle = '#fff4d6';
+    g.beginPath();
+    g.moveTo(fPeakX - 28, fPeakY + 35);
+    g.lineTo(fPeakX - 22, fPeakY + 20);
+    g.lineTo(fPeakX - 14, fPeakY + 30);
+    g.lineTo(fPeakX - 8, fPeakY + 10);
+    g.quadraticCurveTo(fPeakX, fPeakY - 3, fPeakX + 8, fPeakY + 10);
+    g.lineTo(fPeakX + 14, fPeakY + 28);
+    g.lineTo(fPeakX + 22, fPeakY + 18);
+    g.lineTo(fPeakX + 28, fPeakY + 35);
+    g.closePath();
+    g.fill();
+    g.restore();
 
-    // Torii gate silhouette far behind
-    ctx.save();
-    ctx.globalAlpha = 0.22;
-    ctx.fillStyle = '#e60012';
+    g.save();
+    g.globalAlpha = 0.22;
+    g.fillStyle = '#e60012';
     const tX = 340, tY = 250, tW = 90, tH = 80;
-    // two uprights
-    ctx.fillRect(tX - tW/2, tY, 7, tH);
-    ctx.fillRect(tX + tW/2 - 7, tY, 7, tH);
-    // top beam (kasagi)
-    ctx.beginPath();
-    ctx.moveTo(tX - tW/2 - 12, tY);
-    ctx.lineTo(tX + tW/2 + 12, tY);
-    ctx.lineTo(tX + tW/2 + 18, tY - 8);
-    ctx.lineTo(tX - tW/2 - 18, tY - 8);
-    ctx.closePath();
-    ctx.fill();
-    // second beam (shimaki)
-    ctx.fillRect(tX - tW/2 - 4, tY + 10, tW + 8, 5);
-    ctx.restore();
+    g.fillRect(tX - tW/2, tY, 7, tH);
+    g.fillRect(tX + tW/2 - 7, tY, 7, tH);
+    g.beginPath();
+    g.moveTo(tX - tW/2 - 12, tY);
+    g.lineTo(tX + tW/2 + 12, tY);
+    g.lineTo(tX + tW/2 + 18, tY - 8);
+    g.lineTo(tX - tW/2 - 18, tY - 8);
+    g.closePath();
+    g.fill();
+    g.fillRect(tX - tW/2 - 4, tY + 10, tW + 8, 5);
+    g.restore();
 
-    // Subtle wood grain strokes on the playfield panel
-    ctx.save();
-    ctx.strokeStyle = 'rgba(60, 20, 30, 0.25)';
-    ctx.lineWidth = 0.5;
+    g.save();
+    g.strokeStyle = 'rgba(60, 20, 30, 0.25)';
+    g.lineWidth = 0.5;
     for (let y = 30; y < H; y += 14) {
-      ctx.beginPath();
-      ctx.moveTo(0, y + Math.sin(y * 0.1) * 2);
-      ctx.bezierCurveTo(CANVAS_W * 0.3, y + 2, CANVAS_W * 0.6, y - 2, CANVAS_W, y + Math.sin(y * 0.1 + 2) * 2);
-      ctx.stroke();
+      g.beginPath();
+      g.moveTo(0, y + Math.sin(y * 0.1) * 2);
+      g.bezierCurveTo(CANVAS_W * 0.3, y + 2, CANVAS_W * 0.6, y - 2, CANVAS_W, y + Math.sin(y * 0.1 + 2) * 2);
+      g.stroke();
     }
-    ctx.restore();
+    g.restore();
+  })();
+
+  function drawPlayfieldBackground() {
+    ctx.drawImage(bgCanvas, 0, 0);
   }
 
   // Cherry blossom branches in background (drawn behind pegs)

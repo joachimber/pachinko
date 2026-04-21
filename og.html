@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Noto+Serif+JP:wght@700;900&family=Yuji+Syuku&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  @page { size: 1200px 630px; margin: 0; }
+  html, body {
+    width: 1200px; height: 630px;
+    background: #000;
+    font-family: 'Noto Sans JP', system-ui, sans-serif;
+    color: #f5e6c8;
+    overflow: hidden;
+  }
+  .card {
+    width: 1200px; height: 630px;
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(ellipse at top, #1a0f2e 0%, #0a0612 60%, #000 100%);
+    display: grid;
+    grid-template-columns: 1.55fr 1fr;
+    align-items: center;
+    padding: 44px 60px 70px;
+    gap: 36px;
+  }
+  .pegs {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.09;
+    background-image: radial-gradient(circle, #d4a845 1.4px, transparent 1.8px);
+    background-size: 34px 34px;
+  }
+  .frame {
+    position: absolute;
+    inset: 24px;
+    border: 1px solid rgba(212, 168, 69, 0.28);
+    pointer-events: none;
+    border-radius: 2px;
+  }
+  .frame::before, .frame::after {
+    content: "\2740";
+    position: absolute;
+    color: #ffb7c5;
+    font-size: 20px;
+    opacity: 0.55;
+  }
+  .frame::before { top: -11px; left: 40px; }
+  .frame::after { bottom: -11px; right: 40px; }
+
+  .moon {
+    position: absolute;
+    top: 44px; right: 80px;
+    width: 110px; height: 110px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fffbe5, #ffe082 45%, #d4a845 85%, #6b4a10 100%);
+    box-shadow: 0 0 60px rgba(255, 224, 130, 0.3);
+    opacity: 0.85;
+  }
+
+  .left { position: relative; z-index: 2; }
+  .eyebrow {
+    font-family: 'Yuji Syuku', serif;
+    font-size: 18px;
+    letter-spacing: 9px;
+    color: #d4a845;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .eyebrow .en {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: #8a7a5a;
+    margin-left: 10px;
+  }
+  .kanji {
+    font-family: 'Yuji Syuku', 'Noto Serif JP', serif;
+    font-size: 122px;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: 8px;
+    background: linear-gradient(180deg, #ffe082 0%, #e60012 55%, #8b1018 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 30px rgba(230, 0, 18, 0.35));
+    margin-bottom: 12px;
+    white-space: nowrap;
+  }
+  .romaji {
+    font-family: 'Yuji Syuku', serif;
+    font-size: 46px;
+    font-weight: 900;
+    color: #ffe082;
+    letter-spacing: 14px;
+    text-indent: 14px;
+    margin-bottom: 18px;
+    white-space: nowrap;
+  }
+  .tag {
+    font-size: 21px;
+    color: #d4a845;
+    letter-spacing: 3px;
+    font-weight: 400;
+    line-height: 1.4;
+    max-width: 640px;
+  }
+  .tag .dim { color: #5a4a2a; margin: 0 6px; }
+  .pill {
+    display: inline-flex;
+    gap: 12px;
+    align-items: center;
+    margin-top: 22px;
+    padding: 10px 20px;
+    border: 1px solid rgba(212, 168, 69, 0.45);
+    border-radius: 100px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 2px;
+    color: #d4a845;
+    white-space: nowrap;
+  }
+  .pill b { color: #ffe082; font-weight: 700; }
+  .pill .sep { color: #5a4a2a; }
+
+  /* ---- right: machine mock ---- */
+  .mock {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 300px;
+    aspect-ratio: 4/5;
+    margin-left: auto;
+    background: linear-gradient(180deg, #3a1214 0%, #2a0c0e 100%);
+    border: 3px solid #d4a845;
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 0 50px rgba(230, 0, 18, 0.35), 0 14px 40px rgba(0,0,0,0.7);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .mock .title {
+    text-align: center;
+    font-family: 'Yuji Syuku', serif;
+    font-size: 18px;
+    letter-spacing: 8px;
+    color: #ffe082;
+    margin-bottom: 12px;
+  }
+  .mock .field {
+    flex: 1;
+    background: radial-gradient(ellipse at top, #2a1a4a 0%, #1a0f2e 50%, #0a0612 100%);
+    border: 2px solid #5a3018;
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+    background-image:
+      radial-gradient(circle, #d4a845 1.3px, transparent 1.8px),
+      radial-gradient(ellipse at top, #2a1a4a 0%, #1a0f2e 50%, #0a0612 100%);
+    background-size: 28px 28px, 100% 100%;
+    background-position: 14px 14px, 0 0;
+  }
+  .mock .field .moon-s {
+    position: absolute;
+    top: 14px; left: 20px;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fffbe5, #ffe082 45%, #d4a845 85%);
+    box-shadow: 0 0 16px rgba(255, 224, 130, 0.4);
+  }
+  .mock .field .fuji {
+    position: absolute;
+    left: 50%; top: 28%;
+    transform: translateX(-50%);
+    font-family: serif;
+    font-size: 82px;
+    color: rgba(160, 140, 100, 0.35);
+    line-height: 1;
+  }
+  .mock .field .ball {
+    position: absolute;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fffbe5, #ffe082 45%, #d4a845 100%);
+    box-shadow: 0 0 10px #ffe082;
+  }
+  .mock .field .b1 { top: 44%; left: 38%; }
+  .mock .field .b2 { top: 58%; left: 62%; }
+  .mock .field .b3 { top: 66%; left: 46%; }
+  .mock .field .pockets {
+    position: absolute;
+    bottom: 6px; left: 6px; right: 6px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.4fr 1fr 1fr;
+    gap: 3px;
+    height: 28px;
+  }
+  .mock .field .pockets > div {
+    border: 1px solid #d4a845;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Yuji Syuku', serif;
+    font-size: 10px;
+    color: #ffe082;
+    background: rgba(35, 12, 18, 0.85);
+  }
+  .mock .field .pockets .jp {
+    background: #e60012;
+    color: #ffe082;
+    font-size: 9px;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+  }
+
+  /* corner url */
+  .url {
+    position: absolute;
+    bottom: 28px; left: 60px;
+    font-family: 'Yuji Syuku', serif;
+    font-size: 22px;
+    color: #ffe082;
+    letter-spacing: 4px;
+    z-index: 3;
+    text-shadow: 0 0 18px rgba(255, 216, 74, 0.4);
+  }
+  .url .dot { color: #e60012; }
+
+  .sakura {
+    position: absolute;
+    bottom: 28px; right: 72px;
+    font-size: 20px;
+    color: #ffb7c5;
+    opacity: 0.55;
+    letter-spacing: 10px;
+    z-index: 3;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="pegs"></div>
+  <div class="frame"></div>
+  <div class="moon"></div>
+
+  <div class="left">
+    <div class="eyebrow">大当たり <span class="en">OATARI · JACKPOT</span></div>
+    <div class="kanji">大当たり</div>
+    <div class="romaji">oatari</div>
+    <div class="tag">Provably fair pachinko. <span class="dim">&middot;</span> Onchain. <span class="dim">&middot;</span> Verifiable in your browser.</div>
+    <div class="pill">
+      <span>Solana devnet</span>
+      <span class="sep">|</span>
+      <span><b>SHA-256</b> seed chain</span>
+      <span class="sep">|</span>
+      <span><b>0</b> servers</span>
+    </div>
+  </div>
+
+  <div class="mock">
+    <div class="title">桜 パ チ ン コ</div>
+    <div class="field">
+      <div class="moon-s"></div>
+      <div class="fuji">&#9650;</div>
+      <div class="ball b1"></div>
+      <div class="ball b2"></div>
+      <div class="ball b3"></div>
+      <div class="pockets">
+        <div>&#22806;</div><div>&#26716;</div><div class="jp">&#22823;&#24403;&#12383;&#12426;</div><div>&#26716;</div><div>&#22806;</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="url">oatari<span class="dot">.</span>xyz</div>
+  <div class="sakura">&#10048; &#10048;</div>
+</div>
+</body>
+</html>
